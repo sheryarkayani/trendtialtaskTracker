@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
 import { useActivity } from '@/hooks/useActivity';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppDataContextType {
   // Tasks data
@@ -59,6 +59,26 @@ export const AppDataProvider = ({ children }: { children: React.ReactNode }) => 
     teamProductivity: [],
     weeklyProgress: []
   });
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('public:tasks')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          console.log('Realtime change received!', payload);
+          refreshTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshTasks]);
 
   // Calculate analytics whenever tasks or team data changes
   useEffect(() => {

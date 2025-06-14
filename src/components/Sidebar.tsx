@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
@@ -46,13 +45,13 @@ const Sidebar = () => {
   const navItems = getNavItems();
 
   return (
-    <div className="bg-white w-64 min-h-screen shadow-lg border-r border-gray-200">
+    <div className="bg-card w-64 min-h-screen border-r">
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <CheckSquare className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <CheckSquare className="w-5 h-5 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">TaskFlow</h1>
+          <h1 className="text-xl font-bold text-foreground">TaskFlow</h1>
         </div>
         
         <nav className="space-y-2">
@@ -63,8 +62,8 @@ const Sidebar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 }`
               }
             >

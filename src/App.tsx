@@ -1,10 +1,9 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
 import Tasks from '@/pages/Tasks';
 import Team from '@/pages/Team';
 import Analytics from '@/pages/Analytics';
@@ -32,7 +31,7 @@ function App() {
             <Header />
             <main className="flex-1 overflow-x-hidden overflow-y-auto">
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Dashboard />} />
                 <Route path="/tasks" element={<Tasks />} />
                 <Route 
                   path="/clients" 

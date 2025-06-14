@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Filter, MoreHorizontal, Move, CheckSquare } from 'lucide-react';
 import EnhancedTaskCard from './EnhancedTaskCard';
@@ -13,10 +12,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/task';
+import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import { supabase } from '@/integrations/supabase/client';
+import TaskCard from './TaskCard';
+import { TeamMember } from '@/hooks/useTeam';
 
-const TaskBoard = () => {
-  const { tasks, loading, refetch, updateTaskStatus, updateTask, deleteTask } = useTasks();
-  const { teamMembers } = useTeam();
+interface TaskBoardProps {
+  tasks: Task[];
+  teamMembers: TeamMember[];
+  onTaskUpdate: () => void;
+}
+
+const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate }) => {
+  const { loading, refetch, updateTaskStatus, updateTask, deleteTask } = useTasks();
   const { clients } = useClients();
   
   // UI State
@@ -208,6 +216,33 @@ const TaskBoard = () => {
     }
   };
 
+  const onDragEnd = async (result: any) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const newStatus = destination.droppableId;
+
+    try {
+      await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', draggableId);
+      onTaskUpdate();
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -262,7 +297,7 @@ const TaskBoard = () => {
                 className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all"
               >
                 <Plus className="w-4 h-4" />
-                <span>New Campaign</span>
+                <span>Add Task</span>
               </Button>
             </div>
           </div>
@@ -292,91 +327,96 @@ const TaskBoard = () => {
 
         {/* Kanban Board Columns */}
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {columns.map((column) => {
-              const columnTasks = getTasksForColumn(column.id);
-              const selectedInColumn = columnTasks.filter(task => selectedTasks.includes(task.id)).length;
-              const allSelectedInColumn = columnTasks.length > 0 && selectedInColumn === columnTasks.length;
-              
-              return (
-                <div 
-                  key={column.id} 
-                  className={cn(
-                    "rounded-xl p-4 min-h-[500px] transition-all duration-200",
-                    column.color,
-                    draggedTask && "border-2 border-dashed",
-                    draggedTask ? column.borderColor : "border-transparent"
-                  )}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, column.id)}
-                >
-                  {/* Enhanced Column Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('-50', '-500').replace('-100', '-500')}`} />
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                        <p className="text-xs text-gray-500">{column.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {columnTasks.length}
-                      </Badge>
-                      {columnTasks.length > 0 && (
-                        <button
-                          onClick={() => handleSelectAll(column.id)}
-                          className={cn(
-                            "w-4 h-4 border-2 rounded flex items-center justify-center",
-                            allSelectedInColumn 
-                              ? "bg-blue-500 border-blue-500" 
-                              : selectedInColumn > 0
-                              ? "bg-blue-200 border-blue-500"
-                              : "border-gray-300 hover:border-blue-400"
-                          )}
-                        >
-                          {allSelectedInColumn && <CheckSquare className="w-3 h-3 text-white" />}
-                          {selectedInColumn > 0 && !allSelectedInColumn && (
-                            <div className="w-2 h-2 bg-blue-500 rounded" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tasks */}
-                  <div className="space-y-4">
-                    {columnTasks.map((task) => (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {columns.map((column) => {
+                const columnTasks = getTasksForColumn(column.id);
+                const selectedInColumn = columnTasks.filter(task => selectedTasks.includes(task.id)).length;
+                const allSelectedInColumn = columnTasks.length > 0 && selectedInColumn === columnTasks.length;
+                
+                return (
+                  <Droppable key={column.id} droppableId={column.id}>
+                    {(provided) => (
                       <div
-                        key={task.id}
-                        onDragStart={() => handleDragStart(task.id)}
-                        onDragEnd={handleDragEnd}
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={cn(
+                          "rounded-xl p-4 min-h-[500px] transition-all duration-200",
+                          column.color,
+                          draggedTask && "border-2 border-dashed",
+                          draggedTask ? column.borderColor : "border-transparent"
+                        )}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, column.id)}
                       >
-                        <EnhancedTaskCard 
-                          task={task} 
-                          onUpdate={handleTaskUpdate}
-                          updateTaskStatus={updateTaskStatus}
-                          isDragging={draggedTask === task.id}
-                          isSelected={selectedTasks.includes(task.id)}
-                          onSelect={(selected) => handleTaskSelect(task.id, selected)}
-                          onOpenDetail={() => handleOpenTaskDetail(task)}
-                        />
+                        {/* Enhanced Column Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('-50', '-500').replace('-100', '-500')}`} />
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{column.title}</h3>
+                              <p className="text-xs text-gray-500">{column.description}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {columnTasks.length}
+                            </Badge>
+                            {columnTasks.length > 0 && (
+                              <button
+                                onClick={() => handleSelectAll(column.id)}
+                                className={cn(
+                                  "w-4 h-4 border-2 rounded flex items-center justify-center",
+                                  allSelectedInColumn 
+                                    ? "bg-blue-500 border-blue-500" 
+                                    : selectedInColumn > 0
+                                    ? "bg-blue-200 border-blue-500"
+                                    : "border-gray-300 hover:border-blue-400"
+                                )}
+                              >
+                                {allSelectedInColumn && <CheckSquare className="w-3 h-3 text-white" />}
+                                {selectedInColumn > 0 && !allSelectedInColumn && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tasks */}
+                        <div className="space-y-4">
+                          {columnTasks.map((task, index) => (
+                            <div
+                              key={task.id}
+                              onDragStart={() => handleDragStart(task.id)}
+                              onDragEnd={handleDragEnd}
+                            >
+                              <TaskCard
+                                task={task}
+                                index={index}
+                                teamMembers={teamMembers}
+                              />
+                            </div>
+                          ))}
+                          
+                          {/* Add Task Button */}
+                          <button 
+                            onClick={() => setShowCreateDialog(true)}
+                            className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center space-x-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Add {column.title}</span>
+                          </button>
+                        </div>
+
+                        {provided.placeholder}
                       </div>
-                    ))}
-                    
-                    {/* Add Task Button */}
-                    <button 
-                      onClick={() => setShowCreateDialog(true)}
-                      className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center space-x-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Add {column.title}</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    )}
+                  </Droppable>
+                );
+              })}
+            </div>
+          </DragDropContext>
         </div>
       </div>
 

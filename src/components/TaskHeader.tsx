@@ -1,61 +1,74 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, List, Building2, Plus } from 'lucide-react';
+import { Kanban, List, Users, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface TaskHeaderProps {
-  viewMode: 'list' | 'kanban' | 'clients';
-  setViewMode: (mode: 'list' | 'kanban' | 'clients') => void;
+  viewMode: 'kanban' | 'list' | 'clients';
+  setViewMode: (mode: 'kanban' | 'list' | 'clients') => void;
   onCreateTask: () => void;
-  showClientView?: boolean;
+  showClientView: boolean;
 }
 
-const TaskHeader = ({ viewMode, setViewMode, onCreateTask, showClientView = true }: TaskHeaderProps) => {
+const TaskHeader: React.FC<TaskHeaderProps> = ({ 
+  viewMode, 
+  setViewMode, 
+  onCreateTask,
+  showClientView
+}) => {
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Campaign Management</h1>
-        <p className="text-gray-600">Manage your social media campaigns and client projects</p>
+        <h1 className="text-3xl font-bold text-foreground">Campaigns</h1>
+        <p className="text-muted-foreground mt-1">Manage your campaigns and tasks.</p>
       </div>
-      
-      <div className="flex items-center gap-3">
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1">
+      <div className="flex items-center space-x-2 mt-4 md:mt-0">
+        <div className="bg-muted p-1 rounded-lg flex items-center">
           <Button
-            variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+            variant="ghost"
             size="sm"
             onClick={() => setViewMode('kanban')}
-            className="flex items-center gap-2"
+            className={cn(
+              'flex items-center gap-2',
+              viewMode === 'kanban' && 'bg-background shadow-sm'
+            )}
           >
-            <LayoutGrid className="w-4 h-4" />
-            Kanban
+            <Kanban className="w-4 h-4" />
+            <span>Kanban</span>
           </Button>
           <Button
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            variant="ghost"
             size="sm"
             onClick={() => setViewMode('list')}
-            className="flex items-center gap-2"
+            className={cn(
+              'flex items-center gap-2',
+              viewMode === 'list' && 'bg-background shadow-sm'
+            )}
           >
             <List className="w-4 h-4" />
-            List
+            <span>List</span>
           </Button>
           {showClientView && (
             <Button
-              variant={viewMode === 'clients' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setViewMode('clients')}
-              className="flex items-center gap-2"
+              className={cn(
+                'flex items-center gap-2',
+                viewMode === 'clients' && 'bg-background shadow-sm'
+              )}
             >
-              <Building2 className="w-4 h-4" />
-              Clients
+              <Users className="w-4 h-4" />
+              <span>Clients</span>
             </Button>
           )}
         </div>
-
-        {/* Create Task Button */}
-        <Button onClick={onCreateTask} className="flex items-center gap-2">
+        <Button 
+          onClick={onCreateTask}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
-          New Campaign
+          <span>New Task</span>
         </Button>
       </div>
     </div>

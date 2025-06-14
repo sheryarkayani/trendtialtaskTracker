@@ -1,190 +1,54 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Target, Clock, Users, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus, Plus, Eye } from 'lucide-react';
-import { useTasks } from '@/hooks/useTasks';
-import { useTeam } from '@/hooks/useTeam';
-import { useClients } from '@/hooks/useClients';
-import { cn } from '@/lib/utils';
-
-interface DashboardStatsProps {
-  refreshKey: number;
+interface StatCardProps {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  change: string;
+  changeType: 'increase' | 'decrease';
+  footerText: string;
 }
 
-const DashboardStats = ({ refreshKey }: DashboardStatsProps) => {
-  const { tasks, loading: tasksLoading } = useTasks();
-  const { teamMembers, loading: teamLoading } = useTeam();
-  const { clients } = useClients();
-  const [previousStats, setPreviousStats] = useState<any>(null);
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change, changeType, footerText }) => {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground flex items-center">
+          {changeType === 'increase' ? 
+            <ArrowUp className="w-4 h-4 mr-1 text-green-500" /> : 
+            <ArrowDown className="w-4 h-4 mr-1 text-red-500" />
+          }
+          <span className={changeType === 'increase' ? 'text-green-500' : 'text-red-500'}>{change}</span>
+          <span className="ml-1">{footerText}</span>
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
 
-  // Calculate current statistics
-  const activeCampaigns = tasks.filter(task => 
-    ['todo', 'in-progress'].includes(task.status)
-  ).length;
+interface DashboardStatsProps {
+  // Add props for data as we build out the data fetching
+}
 
-  const tasksDueToday = tasks.filter(task => {
-    if (!task.due_date) return false;
-    const today = new Date().toDateString();
-    return new Date(task.due_date).toDateString() === today;
-  }).length;
-
-  const overdueTasks = tasks.filter(task => {
-    if (!task.due_date) return false;
-    return new Date(task.due_date) < new Date() && task.status !== 'completed';
-  }).length;
-
-  const completedThisWeek = tasks.filter(task => {
-    if (!task.completed_at) return false;
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return new Date(task.completed_at) >= weekAgo;
-  }).length;
-
-  const totalAssignedThisWeek = tasks.filter(task => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return new Date(task.created_at) >= weekAgo;
-  }).length;
-
-  const teamProductivity = totalAssignedThisWeek > 0 
-    ? Math.round((completedThisWeek / totalAssignedThisWeek) * 100)
-    : 0;
-
-  const clientSatisfaction = 85; // Mock data - would come from feedback system
-
-  const stats = [
-    {
-      title: 'Active Campaigns',
-      value: activeCampaigns.toString(),
-      change: `${overdueTasks > 0 ? overdueTasks + ' overdue' : 'On track'}`,
-      changeType: overdueTasks > 0 ? 'negative' : 'positive',
-      icon: Target,
-      iconColor: 'bg-gradient-to-br from-blue-500 to-blue-600',
-      actions: [
-        { label: 'View All', action: () => window.location.href = '/tasks' },
-        { label: 'Add New', action: () => console.log('Add campaign') }
-      ]
-    },
-    {
-      title: 'Tasks Due Today',
-      value: tasksDueToday.toString(),
-      change: overdueTasks > 0 ? `${overdueTasks} overdue` : 'All current',
-      changeType: overdueTasks > 0 ? 'negative' : 'positive',
-      icon: Clock,
-      iconColor: 'bg-gradient-to-br from-orange-500 to-orange-600',
-      actions: [
-        { label: 'View Details', action: () => console.log('View tasks') },
-        { label: 'Reschedule', action: () => console.log('Reschedule') }
-      ]
-    },
-    {
-      title: 'Team Productivity',
-      value: `${teamProductivity}%`,
-      change: `${completedThisWeek} completed this week`,
-      changeType: teamProductivity >= 70 ? 'positive' : teamProductivity >= 50 ? 'neutral' : 'negative',
-      icon: Users,
-      iconColor: 'bg-gradient-to-br from-green-500 to-green-600',
-      actions: [
-        { label: 'Team View', action: () => window.location.href = '/team' },
-        { label: 'Analytics', action: () => window.location.href = '/analytics' }
-      ]
-    },
-    {
-      title: 'Client Satisfaction',
-      value: `${clientSatisfaction}%`,
-      change: 'Based on recent feedback',
-      changeType: clientSatisfaction >= 80 ? 'positive' : clientSatisfaction >= 60 ? 'neutral' : 'negative',
-      icon: TrendingUp,
-      iconColor: 'bg-gradient-to-br from-purple-500 to-purple-600',
-      actions: [
-        { label: 'View Clients', action: () => window.location.href = '/clients' },
-        { label: 'Feedback', action: () => console.log('View feedback') }
-      ]
-    }
+const DashboardStats: React.FC<DashboardStatsProps> = (props) => {
+  // Dummy data for now
+  const stats: StatCardProps[] = [
+    { title: 'Active Campaigns', value: '1', icon: <div className="p-2 bg-blue-500/10 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>, change: '1', changeType: 'decrease', footerText: 'overdue' },
+    { title: 'Tasks Due Today', value: '0', icon: <div className="p-2 bg-orange-500/10 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>, change: '1', changeType: 'decrease', footerText: 'overdue' },
+    { title: 'Team Productivity', value: '0%', icon: <div className="p-2 bg-green-500/10 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg></div>, change: '0', changeType: 'decrease', footerText: 'completed this week' },
+    { title: 'Client Satisfaction', value: '85%', icon: <div className="p-2 bg-violet-500/10 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>, change: '5%', changeType: 'increase', footerText: 'Based on recent feedback' }
   ];
 
-  const getTrendIcon = (changeType: string) => {
-    switch (changeType) {
-      case 'positive':
-        return <ArrowUp className="w-3 h-3 text-green-600" />;
-      case 'negative':
-        return <ArrowDown className="w-3 h-3 text-red-600" />;
-      default:
-        return <Minus className="w-3 h-3 text-gray-600" />;
-    }
-  };
-
-  const getChangeColor = (changeType: string) => {
-    switch (changeType) {
-      case 'positive':
-        return 'text-green-600 bg-green-50 border-green-200';
-      case 'negative':
-        return 'text-red-600 bg-red-50 border-red-200';
-      default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
-
-  if (tasksLoading || teamLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-20 bg-gray-200 rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
-        <Card 
-          key={index} 
-          className="group hover:shadow-lg transition-all duration-200 border-0 shadow-sm bg-white"
-        >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                <div className="flex items-baseline space-x-2">
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                  {getTrendIcon(stat.changeType)}
-                </div>
-              </div>
-              <div className={cn("p-3 rounded-xl", stat.iconColor)}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            
-            <div className={cn(
-              "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border mb-3",
-              getChangeColor(stat.changeType)
-            )}>
-              {stat.change}
-            </div>
-
-            <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              {stat.actions.map((action, actionIndex) => (
-                <Button
-                  key={actionIndex}
-                  variant="ghost"
-                  size="sm"
-                  onClick={action.action}
-                  className="text-xs h-7 px-2"
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      {stats.map(stat => <StatCard key={stat.title} {...stat} />)}
     </div>
   );
 };
