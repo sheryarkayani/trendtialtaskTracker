@@ -19,7 +19,12 @@ export const useClients = () => {
     
     try {
       const fetchedClients = await apiFetchClients();
-      setClients(fetchedClients);
+      // Ensure proper type casting for status field
+      const typedClients = fetchedClients.map(client => ({
+        ...client,
+        status: client.status as 'active' | 'inactive' | 'archived'
+      }));
+      setClients(typedClients);
     } catch (error) {
       console.error('Error fetching clients:', error);
     } finally {

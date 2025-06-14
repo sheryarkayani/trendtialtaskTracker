@@ -5,26 +5,36 @@ import { supabase } from '@/integrations/supabase/client';
 let globalChannel: any = null;
 let subscriberCount = 0;
 let globalUserId: string | null = null;
+let isSubscribing = false;
 
 export const useTasksRealtime = () => {
-  const setupGlobalRealtime = (userId: string) => {
-    if (globalChannel || !userId) return;
+  const setupGlobalRealtime = async (userId: string) => {
+    if (globalChannel || !userId || isSubscribing) return;
 
     console.log('Setting up global realtime subscription for user:', userId);
+    isSubscribing = true;
     
-    globalChannel = supabase
-      .channel(`tasks-global-${userId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'tasks' },
-        (payload) => { 
-          console.log('Tasks updated via realtime:', payload);
-          // Trigger refetch for all subscribers
-          window.dispatchEvent(new CustomEvent('tasks-updated'));
-        }
-      )
-      .subscribe((status) => {
+    try {
+      globalChannel = supabase
+        .channel(`tasks-global-${userId}`)
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'tasks' },
+          (payload) => { 
+            console.log('Tasks updated via realtime:', payload);
+            // Trigger refetch for all subscribers
+            window.dispatchEvent(new CustomEvent('tasks-updated'));
+          }
+        );
+
+      await globalChannel.subscribe((status: string) => {
         console.log('Global tasks realtime status:', status);
+        isSubscribing = false;
       });
+    } catch (error) {
+      console.error('Error setting up realtime subscription:', error);
+      isSubscribing = false;
+      globalChannel = null;
+    }
   };
 
   const cleanupGlobalRealtime = () => {
@@ -33,6 +43,7 @@ export const useTasksRealtime = () => {
       supabase.removeChannel(globalChannel);
       globalChannel = null;
       globalUserId = null;
+      isSubscribing = false;
     }
   };
 
@@ -44,16 +55,17 @@ export const useTasksRealtime = () => {
       if (globalChannel) {
         supabase.removeChannel(globalChannel);
         globalChannel = null;
+        isSubscribing = false;
       }
       globalUserId = userId;
       setupGlobalRealtime(userId);
-    } else if (!globalChannel) {
+    } else if (!globalChannel && !isSubscribing) {
       setupGlobalRealtime(userId);
     }
   };
 
   const unsubscribeFromRealtime = () => {
-    subscriberCount--;
+    subscriberCount = Math.max(0, subscriberCount - 1);
     // Clean up global channel if no more subscribers
     setTimeout(cleanupGlobalRealtime, 100);
   };
