@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Plus, MoreVertical, Grid, List, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -148,9 +147,8 @@ const Clients = () => {
     }
   };
 
-  const handleClientCreate = async (clientData: any) => {
+  const handleClientCreate = async () => {
     try {
-      await createClient(clientData);
       setIsCreateDialogOpen(false);
       toast({
         title: "Client created",
@@ -409,7 +407,7 @@ const Clients = () => {
       <CreateClientDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onCreate={handleClientCreate}
+        onSuccess={handleClientCreate}
       />
 
       {editingClient && (
@@ -417,10 +415,7 @@ const Clients = () => {
           open={!!editingClient}
           onOpenChange={(open) => !open && setEditingClient(null)}
           client={editingClient}
-          onUpdate={async (updates) => {
-            await handleClientUpdate(editingClient.id, updates);
-            setEditingClient(null);
-          }}
+          onSuccess={() => setEditingClient(null)}
         />
       )}
     </div>
