@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,32 +23,76 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle user signup - link existing profile if it exists
+        // Handle user signup - create or update profile
         if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(async () => {
             try {
-              // Check if a profile already exists for this email
-              const { data: existingProfile } = await supabase
+              // Check if a profile already exists for this user
+              const { data: existingProfile, error: fetchError } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('email', session.user.email)
-                .single();
+                .eq('id', session.user.id)
+                .maybeSingle();
 
-              if (existingProfile) {
-                // Update the existing profile with the auth user ID
-                await supabase
+              if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Error checking for existing profile:', fetchError);
+                return;
+              }
+
+              if (!existingProfile) {
+                // Check if there's a profile with matching email that needs to be linked
+                const { data: emailProfile, error: emailError } = await supabase
                   .from('profiles')
-                  .update({ id: session.user.id })
-                  .eq('email', session.user.email);
-                
-                console.log('Linked existing profile to auth user');
+                  .select('*')
+                  .eq('email', session.user.email!)
+                  .maybeSingle();
+
+                if (emailError && emailError.code !== 'PGRST116') {
+                  console.error('Error checking for email profile:', emailError);
+                  return;
+                }
+
+                if (emailProfile) {
+                  // Update the existing profile with the auth user ID
+                  const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update({ id: session.user.id })
+                    .eq('email', session.user.email!);
+                  
+                  if (updateError) {
+                    console.error('Error linking existing profile:', updateError);
+                  } else {
+                    console.log('Successfully linked existing profile to auth user');
+                  }
+                } else {
+                  // Create a new profile
+                  const { error: createError } = await supabase
+                    .from('profiles')
+                    .insert({
+                      id: session.user.id,
+                      email: session.user.email!,
+                      first_name: session.user.user_metadata?.first_name || '',
+                      last_name: session.user.user_metadata?.last_name || '',
+                      role: session.user.user_metadata?.role || 'team_member',
+                      organization_id: session.user.user_metadata?.organization_id || '00000000-0000-0000-0000-000000000001',
+                      bio: session.user.user_metadata?.bio || null,
+                      skills: session.user.user_metadata?.skills || null
+                    });
+
+                  if (createError) {
+                    console.error('Error creating profile:', createError);
+                  } else {
+                    console.log('Successfully created new profile');
+                  }
+                }
               }
             } catch (error) {
-              console.error('Error linking profile:', error);
+              console.error('Error in auth state change handler:', error);
             }
           }, 100);
         }
@@ -83,6 +128,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         data: {
           first_name: firstName,
           last_name: lastName,
+          role: 'team_member',
+          organization_id: '00000000-0000-0000-0000-000000000001'
         }
       }
     });

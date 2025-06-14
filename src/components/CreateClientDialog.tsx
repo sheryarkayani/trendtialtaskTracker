@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useClients } from '@/hooks/useClients';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -15,7 +16,6 @@ interface CreateClientDialogProps {
 }
 
 const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialogProps) => {
-  const { createClient } = useClients();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -24,23 +24,61 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
     description: '',
     brand_color: '#3B82F6'
   });
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
     setLoading(true);
 
     try {
-      await createClient({
-        name: formData.name,
-        email: formData.email || undefined,
-        company: formData.company || undefined,
-        description: formData.description || undefined,
-        brand_color: formData.brand_color
-      });
+      // Create client directly in the clients table
+      const { error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          name: formData.name,
+          email: formData.email || null,
+          company: formData.company || null,
+          description: formData.description || null,
+          brand_color: formData.brand_color,
+          organization_id: '00000000-0000-0000-0000-000000000001',
+          status: 'active'
+        });
+
+      if (clientError) {
+        throw clientError;
+      }
+
+      // If email is provided and this client should also be a user, send invitation
+      if (formData.email) {
+        try {
+          const { error: inviteError } = await supabase.auth.signInWithOtp({
+            email: formData.email,
+            options: {
+              shouldCreateUser: true,
+              data: {
+                first_name: formData.name.split(' ')[0] || formData.name,
+                last_name: formData.name.split(' ').slice(1).join(' ') || '',
+                role: 'client',
+                organization_id: '00000000-0000-0000-0000-000000000001'
+              }
+            }
+          });
+
+          if (inviteError) {
+            console.log('Client invitation email might not be sent:', inviteError);
+            // Don't throw here as the client was still created successfully
+          }
+        } catch (inviteError) {
+          console.log('Client invitation failed:', inviteError);
+          // Don't throw here as the client was still created successfully
+        }
+      }
 
       toast({
         title: "Client created",
-        description: "The client has been created successfully.",
+        description: `${formData.name} has been added successfully.${formData.email ? ' An invitation email has been sent.' : ''}`,
       });
 
       // Reset form
@@ -57,10 +95,11 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating client:', error);
       toast({
         title: "Error",
-        description: "Failed to create client. Please try again.",
+        description: error.message || "Failed to create client. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -98,7 +137,7 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
           </div>
 
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email (Optional)</Label>
             <Input
               id="email"
               type="email"
@@ -106,6 +145,7 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="client@company.com"
             />
+            <p className="text-sm text-gray-500 mt-1">If provided, they'll receive an invitation to access the portal</p>
           </div>
 
           <div>

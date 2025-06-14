@@ -34,47 +34,70 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     setLoading(true);
 
     try {
-      // Generate a unique ID for the profile
-      const profileId = crypto.randomUUID();
-      
-      // Create the profile directly in the profiles table
-      const { error: profileError } = await supabase
+      // Check if a profile already exists for this email
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .insert({
-          id: profileId,
-          email: formData.email,
+        .select('id, email')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingProfile) {
+        toast({
+          title: "User already exists",
+          description: `A team member with email ${formData.email} already exists in the system.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create a placeholder profile that will be linked when the user signs up
+      // We'll use a temporary UUID that will be replaced when they authenticate
+      const tempId = crypto.randomUUID();
+
+      // First, send the invitation via Supabase Auth
+      const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(formData.email, {
+        data: {
           first_name: formData.firstName,
           last_name: formData.lastName,
           role: formData.role,
           bio: formData.bio || null,
           skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-          organization_id: '00000000-0000-0000-0000-000000000001'
-        });
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      // Send invitation email using Supabase Auth
-      const { error: inviteError } = await supabase.auth.signInWithOtp({
-        email: formData.email,
-        options: {
-          shouldCreateUser: true,
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            profile_id: profileId
-          }
-        }
+          organization_id: '00000000-0000-0000-0000-000000000001',
+          temp_profile_id: tempId
+        },
+        redirectTo: `${window.location.origin}/auth`
       });
 
       if (inviteError) {
-        console.log('Invitation email might not be sent, but profile created:', inviteError);
+        console.log('Invitation error:', inviteError);
+        // If we can't send via admin (likely due to permissions), try the regular invite
+        const { error: regularInviteError } = await supabase.auth.signInWithOtp({
+          email: formData.email,
+          options: {
+            shouldCreateUser: true,
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              role: formData.role,
+              bio: formData.bio || null,
+              skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
+              organization_id: '00000000-0000-0000-0000-000000000001'
+            }
+          }
+        });
+
+        if (regularInviteError) {
+          throw regularInviteError;
+        }
       }
 
       toast({
-        title: "Success",
-        description: `${formData.firstName} has been added to the team! They will receive an email to set up their account.`,
+        title: "Invitation sent",
+        description: `${formData.firstName} has been invited to join the team! They will receive an email to set up their account.`,
       });
 
       setFormData({
@@ -91,7 +114,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
       console.error('Error adding team member:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to add team member",
+        description: error.message || "Failed to invite team member. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -103,15 +126,15 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Team Member</DialogTitle>
+          <DialogTitle>Invite Team Member</DialogTitle>
         </DialogHeader>
         
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Team member will be added to your organization</li>
-            <li>• They'll receive an email invitation to join</li>
-            <li>• They can set their own password when they first log in</li>
+            <li>• An invitation email will be sent to the team member</li>
+            <li>• They'll receive a link to join your organization</li>
+            <li>• Their profile will be created when they accept the invitation</li>
             <li>• You can update their details anytime from the team page</li>
           </ul>
         </div>
@@ -189,7 +212,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Send Invitation'}
+              {loading ? 'Sending Invitation...' : 'Send Invitation'}
             </Button>
           </div>
         </form>
