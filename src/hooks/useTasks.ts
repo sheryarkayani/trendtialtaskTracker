@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -29,8 +30,7 @@ export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<any>(null);
-  const isSubscribedRef = useRef(false);
-  const fetchedRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
   const fetchTasks = async () => {
     if (!user) return;
@@ -61,7 +61,6 @@ export const useTasks = () => {
 
       console.log('Tasks fetched successfully:', processedTasks.length);
       setTasks(processedTasks);
-      fetchedRef.current = true;
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -70,49 +69,51 @@ export const useTasks = () => {
   };
 
   useEffect(() => {
-    if (user && !fetchedRef.current) {
-      fetchTasks();
-      
-      // Only set up realtime if not already subscribed and user is authenticated
-      if (!isSubscribedRef.current) {
-        // Clean up any existing channel first
-        if (channelRef.current) {
-          console.log('Cleaning up existing channel');
-          supabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-        }
-        
-        // Set up realtime subscription with unique channel name
-        const channelName = `tasks-realtime-${user.id}-${Date.now()}`;
-        console.log('Setting up realtime channel:', channelName);
-        
-        channelRef.current = supabase
-          .channel(channelName)
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'tasks' },
-            (payload) => { 
-              console.log('Tasks updated via realtime:', payload);
-              fetchTasks(); 
-            }
-          )
-          .subscribe((status) => {
-            console.log('Tasks realtime status:', status);
-            if (status === 'SUBSCRIBED') {
-              isSubscribedRef.current = true;
-            } else if (status === 'CLOSED') {
-              isSubscribedRef.current = false;
-            }
-          });
-      }
-    }
+    if (!user || isInitializedRef.current) return;
 
-    return () => {
+    console.log('Initializing tasks hook for user:', user.id);
+    isInitializedRef.current = true;
+
+    // Initial fetch
+    fetchTasks();
+
+    // Set up realtime subscription
+    const setupRealtime = () => {
+      // Clean up any existing channel
       if (channelRef.current) {
-        console.log('Cleanup: removing tasks channel');
+        console.log('Cleaning up existing channel');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
-        isSubscribedRef.current = false;
       }
+
+      // Create new channel
+      const channelName = `tasks-realtime-${user.id}`;
+      console.log('Setting up realtime channel:', channelName);
+      
+      channelRef.current = supabase
+        .channel(channelName)
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'tasks' },
+          (payload) => { 
+            console.log('Tasks updated via realtime:', payload);
+            fetchTasks(); 
+          }
+        )
+        .subscribe((status) => {
+          console.log('Tasks realtime status:', status);
+        });
+    };
+
+    setupRealtime();
+
+    // Cleanup function
+    return () => {
+      console.log('Cleanup: removing tasks channel');
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      isInitializedRef.current = false;
     };
   }, [user?.id]);
 
@@ -296,103 +297,8 @@ export const useTasks = () => {
     loading, 
     refetch: fetchTasks, 
     updateTaskStatus,
-    createTask: async (taskData: {
-      title: string;
-      description?: string;
-      priority?: Task['priority'];
-      platform?: Task['platform'];
-      assignee_id?: string;
-      project_id?: string;
-      due_date?: string;
-    }) => {
-      if (!user) return;
-      
-      try {
-        console.log('Creating new task:', taskData);
-        const { error } = await supabase
-          .from('tasks')
-          .insert([{
-            ...taskData,
-            organization_id: '00000000-0000-0000-0000-000000000001', // Default org
-            status: 'todo' as const
-          }]);
-
-        if (error) throw error;
-        
-        // Create activity log
-        await supabase
-          .from('activity_logs')
-          .insert([{
-            user_id: user.id,
-            action: `created new task "${taskData.title}"`,
-            entity_type: 'task',
-            entity_id: null
-          }]);
-          
-        console.log('Task created successfully');
-        await fetchTasks();
-      } catch (error) {
-        console.error('Error creating task:', error);
-      }
-    },
-    updateTask: async (taskId: string, updates: Partial<Task>) => {
-      if (!user) return;
-      
-      try {
-        console.log('Updating task:', taskId, updates);
-        const { error } = await supabase
-          .from('tasks')
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', taskId);
-
-        if (error) throw error;
-        
-        // Create activity log
-        await supabase
-          .from('activity_logs')
-          .insert([{
-            user_id: user.id,
-            action: 'updated task details',
-            entity_type: 'task',
-            entity_id: taskId
-          }]);
-          
-        console.log('Task updated successfully');
-        await fetchTasks();
-      } catch (error) {
-        console.error('Error updating task:', error);
-      }
-    },
-    deleteTask: async (taskId: string) => {
-      if (!user) return;
-      
-      try {
-        console.log('Deleting task:', taskId);
-        const { error } = await supabase
-          .from('tasks')
-          .delete()
-          .eq('id', taskId);
-
-        if (error) throw error;
-        
-        // Create activity log
-        await supabase
-          .from('activity_logs')
-          .insert([{
-            user_id: user.id,
-            action: 'deleted task',
-            entity_type: 'task',
-            entity_id: taskId
-          }]);
-          
-        console.log('Task deleted successfully');
-        await fetchTasks();
-      } catch (error) {
-        console.error('Error deleting task:', error);
-      }
-    }
+    createTask,
+    updateTask,
+    deleteTask
   };
 };
