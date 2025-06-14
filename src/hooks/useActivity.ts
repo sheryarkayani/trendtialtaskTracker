@@ -21,29 +21,38 @@ export const useActivity = () => {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !isSubscribedRef.current) {
       fetchActivities();
       
       // Clean up any existing channel
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        isSubscribedRef.current = false;
       }
       
       // Set up realtime subscription with unique channel name
+      const channelName = `activity-changes-${user.id}-${Date.now()}`;
       channelRef.current = supabase
-        .channel(`activity-changes-${user.id}`)
+        .channel(channelName)
         .on('postgres_changes', 
           { event: 'INSERT', schema: 'public', table: 'activity_logs' },
           () => { fetchActivities(); }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            isSubscribedRef.current = true;
+          }
+        });
 
       return () => {
         if (channelRef.current) {
           supabase.removeChannel(channelRef.current);
           channelRef.current = null;
+          isSubscribedRef.current = false;
         }
       };
     }
