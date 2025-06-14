@@ -98,6 +98,135 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          message_type: string | null
+          reply_to: string | null
+          room_id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message_type?: string | null
+          reply_to?: string | null
+          room_id: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message_type?: string | null
+          reply_to?: string | null
+          room_id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+          organization_id: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string | null
+          organization_id?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+          organization_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_communications: {
         Row: {
           client_id: string | null
@@ -364,6 +493,38 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -651,6 +812,28 @@ export type Database = {
         Args: { user_id: string }
         Returns: undefined
       }
+      create_team_member: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_role: Database["public"]["Enums"]["user_role"]
+          p_organization_id: string
+          p_bio: string
+          p_skills: string[]
+        }
+        Returns: string
+      }
+      get_conversations_for_user: {
+        Args: { user_id_param: string }
+        Returns: {
+          id: string
+          name: string
+          type: string
+          participants: Json
+          last_message: Json
+        }[]
+      }
       get_current_user_organization_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -658,6 +841,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_or_create_dm_room: {
+        Args: { user_id_1: string; user_id_2: string }
+        Returns: Json
       }
     }
     Enums: {

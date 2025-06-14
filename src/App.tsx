@@ -14,6 +14,8 @@ import Auth from '@/pages/Auth';
 import NotFound from '@/pages/NotFound';
 import { useAuth } from '@/hooks/useAuth';
 import { AppDataProvider } from '@/contexts/AppDataContext';
+import Chat from '@/pages/Chat';
+import ChatWidget from '@/components/ChatWidget';
 
 function App() {
   const { user } = useAuth();
@@ -52,11 +54,13 @@ function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/chat" element={<Chat />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
           </div>
         </div>
+        <ChatWidget />
         <Toaster />
       </Router>
     </AppDataProvider>
