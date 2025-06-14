@@ -27,13 +27,24 @@ export const useTeam = () => {
     if (!user) return;
     
     try {
-      console.log('Fetching team members for organization...');
+      console.log('Fetching team members for user:', user.id);
+      
+      // First get current user's organization
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      console.log('Current user profile:', currentUserProfile);
+
+      const organizationId = currentUserProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
       
       // Fetch all profiles in the same organization, excluding current user
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('organization_id', '00000000-0000-0000-0000-000000000001')
+        .eq('organization_id', organizationId)
         .neq('id', user.id);
 
       if (error) {
@@ -42,6 +53,14 @@ export const useTeam = () => {
       }
 
       console.log('Raw team members data:', data);
+      console.log('Organization ID used for query:', organizationId);
+
+      // Also fetch all profiles to debug
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      console.log('All profiles in database:', allProfiles);
 
       // Get task counts for each team member
       const membersWithStats = await Promise.all(
