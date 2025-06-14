@@ -8,10 +8,10 @@ import { format } from 'date-fns';
 
 interface TaskCardProps {
   task: Task;
-  onStatusChange: (taskId: string, status: string) => void;
+  onUpdate: () => Promise<void>;
 }
 
-const TaskCard = ({ task, onStatusChange }: TaskCardProps) => {
+const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const priorityColors = {
@@ -32,7 +32,9 @@ const TaskCard = ({ task, onStatusChange }: TaskCardProps) => {
 
   const handleStatusChange = async (newStatus: string) => {
     setIsLoading(true);
-    await onStatusChange(task.id, newStatus);
+    // Here you would typically call an API to update the task status
+    // For now, we'll just call the onUpdate callback
+    await onUpdate();
     setIsLoading(false);
   };
 

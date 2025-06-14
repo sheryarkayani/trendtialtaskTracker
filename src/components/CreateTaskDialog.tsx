@@ -12,9 +12,10 @@ import { toast } from '@/hooks/use-toast';
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-const CreateTaskDialog = ({ open, onOpenChange }: CreateTaskDialogProps) => {
+const CreateTaskDialog = ({ open, onOpenChange, onSuccess }: CreateTaskDialogProps) => {
   const { createTask } = useTasks();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,6 +54,11 @@ const CreateTaskDialog = ({ open, onOpenChange }: CreateTaskDialogProps) => {
       });
 
       onOpenChange(false);
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       toast({
         title: "Error",
