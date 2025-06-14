@@ -28,10 +28,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle user signup - create or update profile
+        // Handle user signup/signin - ensure profile exists
         if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(async () => {
             try {
+              console.log('Checking/creating profile for user:', session.user.id);
+              
               // Check if a profile already exists for this user
               const { data: existingProfile, error: fetchError } = await supabase
                 .from('profiles')
@@ -45,6 +47,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               }
 
               if (!existingProfile) {
+                console.log('No profile found, checking by email...');
+                
                 // Check if there's a profile with matching email that needs to be linked
                 const { data: emailProfile, error: emailError } = await supabase
                   .from('profiles')
@@ -58,6 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 }
 
                 if (emailProfile) {
+                  console.log('Found profile with matching email, updating ID...');
                   // Update the existing profile with the auth user ID
                   const { error: updateError } = await supabase
                     .from('profiles')
@@ -70,7 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     console.log('Successfully linked existing profile to auth user');
                   }
                 } else {
-                  // Create a new profile
+                  console.log('Creating new profile...');
+                  // Create a new profile with metadata from auth user
                   const { error: createError } = await supabase
                     .from('profiles')
                     .insert({
@@ -90,11 +96,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     console.log('Successfully created new profile');
                   }
                 }
+              } else {
+                console.log('Profile already exists:', existingProfile);
+                
+                // Ensure the profile has the correct organization_id if missing
+                if (!existingProfile.organization_id) {
+                  console.log('Updating profile with organization_id...');
+                  const { error: updateOrgError } = await supabase
+                    .from('profiles')
+                    .update({ organization_id: '00000000-0000-0000-0000-000000000001' })
+                    .eq('id', session.user.id);
+                  
+                  if (updateOrgError) {
+                    console.error('Error updating organization_id:', updateOrgError);
+                  }
+                }
               }
             } catch (error) {
               console.error('Error in auth state change handler:', error);
             }
-          }, 100);
+          }, 500); // Increased delay to ensure auth is fully processed
         }
       }
     );

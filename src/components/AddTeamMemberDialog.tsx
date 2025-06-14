@@ -35,6 +35,8 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     setLoading(true);
 
     try {
+      console.log('Starting team member creation process...');
+      
       // Check if a profile already exists for this email
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
@@ -55,7 +57,8 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
         return;
       }
 
-      // Create the user account directly with email and password
+      // Create the user account with Supabase Auth
+      console.log('Creating user account...');
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -73,11 +76,16 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
       });
 
       if (signUpError) {
+        console.error('Auth signup error:', signUpError);
         throw signUpError;
       }
 
-      // If user was created successfully, create the profile immediately
+      console.log('User created successfully:', authData.user?.id);
+
+      // Create profile immediately after user creation
       if (authData.user) {
+        console.log('Creating profile for user:', authData.user.id);
+        
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -92,16 +100,35 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
           });
 
         if (profileError) {
-          console.error('Error creating profile:', profileError);
+          console.error('Profile creation error:', profileError);
           // Don't throw here as the user was still created
+          toast({
+            title: "Warning",
+            description: "User account created but profile setup had issues. The user may need to complete their profile.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Profile created successfully');
         }
+
+        // Wait a moment then verify the profile was created
+        setTimeout(async () => {
+          const { data: verifyProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+          
+          console.log('Profile verification:', verifyProfile);
+        }, 1000);
       }
 
       toast({
-        title: "Team member created",
-        description: `${formData.firstName} has been added to the team successfully! They can now log in with their email and password.`,
+        title: "Team member created successfully!",
+        description: `${formData.firstName} has been added to the team. They can now log in with their email and password.`,
       });
 
+      // Reset form
       setFormData({
         email: '',
         password: '',
