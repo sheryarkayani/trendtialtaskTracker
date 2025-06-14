@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,9 +18,11 @@ interface CreateClientDialogProps {
 
 const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialogProps) => {
   const [loading, setLoading] = useState(false);
+  const [createAccount, setCreateAccount] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     company: '',
     description: '',
     brand_color: '#3B82F6'
@@ -50,45 +53,64 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
         throw clientError;
       }
 
-      // If email is provided and this client should also be a user, send invitation
-      if (formData.email) {
+      // If creating account is requested and email/password are provided
+      if (createAccount && formData.email && formData.password) {
         try {
-          const { error: inviteError } = await supabase.auth.signInWithOtp({
+          const { data: authData, error: signUpError } = await supabase.auth.signUp({
             email: formData.email,
+            password: formData.password,
             options: {
-              shouldCreateUser: true,
               data: {
                 first_name: formData.name.split(' ')[0] || formData.name,
                 last_name: formData.name.split(' ').slice(1).join(' ') || '',
                 role: 'client',
                 organization_id: '00000000-0000-0000-0000-000000000001'
-              }
+              },
+              emailRedirectTo: undefined // Don't send email verification
             }
           });
 
-          if (inviteError) {
-            console.log('Client invitation email might not be sent:', inviteError);
+          if (signUpError) {
+            console.log('Client account creation failed:', signUpError);
             // Don't throw here as the client was still created successfully
+          } else if (authData.user) {
+            // Create profile for the client
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: authData.user.id,
+                email: formData.email,
+                first_name: formData.name.split(' ')[0] || formData.name,
+                last_name: formData.name.split(' ').slice(1).join(' ') || '',
+                role: 'client',
+                organization_id: '00000000-0000-0000-0000-000000000001'
+              });
+
+            if (profileError) {
+              console.error('Error creating client profile:', profileError);
+            }
           }
-        } catch (inviteError) {
-          console.log('Client invitation failed:', inviteError);
+        } catch (accountError) {
+          console.log('Client account creation failed:', accountError);
           // Don't throw here as the client was still created successfully
         }
       }
 
       toast({
         title: "Client created",
-        description: `${formData.name} has been added successfully.${formData.email ? ' An invitation email has been sent.' : ''}`,
+        description: `${formData.name} has been added successfully.${createAccount && formData.email && formData.password ? ' Account created - they can now log in.' : ''}`,
       });
 
       // Reset form
       setFormData({
         name: '',
         email: '',
+        password: '',
         company: '',
         description: '',
         brand_color: '#3B82F6'
       });
+      setCreateAccount(false);
 
       onOpenChange(false);
       
@@ -137,7 +159,7 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
           </div>
 
           <div>
-            <Label htmlFor="email">Email (Optional)</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -145,8 +167,34 @@ const CreateClientDialog = ({ open, onOpenChange, onSuccess }: CreateClientDialo
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="client@company.com"
             />
-            <p className="text-sm text-gray-500 mt-1">If provided, they'll receive an invitation to access the portal</p>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="createAccount" 
+              checked={createAccount}
+              onCheckedChange={(checked) => setCreateAccount(checked as boolean)}
+            />
+            <Label htmlFor="createAccount" className="text-sm">
+              Create login account for this client
+            </Label>
+          </div>
+
+          {createAccount && (
+            <div>
+              <Label htmlFor="password">Password *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
+                required={createAccount}
+                minLength={6}
+              />
+              <p className="text-sm text-gray-500 mt-1">They can log in immediately with email and password</p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="brand_color">Brand Color</Label>

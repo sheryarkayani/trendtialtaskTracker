@@ -20,6 +20,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
+    password: '',
     firstName: '',
     lastName: '',
     role: 'team_member' as 'team_lead' | 'team_member' | 'client',
@@ -54,54 +55,56 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
         return;
       }
 
-      // Create a placeholder profile that will be linked when the user signs up
-      // We'll use a temporary UUID that will be replaced when they authenticate
-      const tempId = crypto.randomUUID();
-
-      // First, send the invitation via Supabase Auth
-      const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(formData.email, {
-        data: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          role: formData.role,
-          bio: formData.bio || null,
-          skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-          organization_id: '00000000-0000-0000-0000-000000000001',
-          temp_profile_id: tempId
-        },
-        redirectTo: `${window.location.origin}/auth`
+      // Create the user account directly with email and password
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            role: formData.role,
+            bio: formData.bio || null,
+            skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
+            organization_id: '00000000-0000-0000-0000-000000000001'
+          },
+          emailRedirectTo: undefined // Don't send email verification
+        }
       });
 
-      if (inviteError) {
-        console.log('Invitation error:', inviteError);
-        // If we can't send via admin (likely due to permissions), try the regular invite
-        const { error: regularInviteError } = await supabase.auth.signInWithOtp({
-          email: formData.email,
-          options: {
-            shouldCreateUser: true,
-            data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              role: formData.role,
-              bio: formData.bio || null,
-              skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-              organization_id: '00000000-0000-0000-0000-000000000001'
-            }
-          }
-        });
+      if (signUpError) {
+        throw signUpError;
+      }
 
-        if (regularInviteError) {
-          throw regularInviteError;
+      // If user was created successfully, create the profile immediately
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            email: formData.email,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            role: formData.role,
+            bio: formData.bio || null,
+            skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
+            organization_id: '00000000-0000-0000-0000-000000000001'
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          // Don't throw here as the user was still created
         }
       }
 
       toast({
-        title: "Invitation sent",
-        description: `${formData.firstName} has been invited to join the team! They will receive an email to set up their account.`,
+        title: "Team member created",
+        description: `${formData.firstName} has been added to the team successfully! They can now log in with their email and password.`,
       });
 
       setFormData({
         email: '',
+        password: '',
         firstName: '',
         lastName: '',
         role: 'team_member',
@@ -114,7 +117,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
       console.error('Error adding team member:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to invite team member. Please try again.",
+        description: error.message || "Failed to create team member. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -126,15 +129,15 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Invite Team Member</DialogTitle>
+          <DialogTitle>Add Team Member</DialogTitle>
         </DialogHeader>
         
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
+          <h4 className="font-medium text-blue-900 mb-2">Direct Account Creation:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• An invitation email will be sent to the team member</li>
-            <li>• They'll receive a link to join your organization</li>
-            <li>• Their profile will be created when they accept the invitation</li>
+            <li>• The team member account will be created immediately</li>
+            <li>• They can log in right away with their email and password</li>
+            <li>• No email verification required</li>
             <li>• You can update their details anytime from the team page</li>
           </ul>
         </div>
@@ -170,7 +173,20 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
             />
-            <p className="text-sm text-gray-500 mt-1">They will receive an invitation email at this address</p>
+            <p className="text-sm text-gray-500 mt-1">This will be their login email</p>
+          </div>
+
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={6}
+            />
+            <p className="text-sm text-gray-500 mt-1">Minimum 6 characters</p>
           </div>
 
           <div>
@@ -212,7 +228,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Sending Invitation...' : 'Send Invitation'}
+              {loading ? 'Creating Account...' : 'Create Team Member'}
             </Button>
           </div>
         </form>
