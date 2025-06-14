@@ -13,27 +13,30 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppData } from '@/contexts/AppDataContext';
 
 const Sidebar = ({ isCollapsed = false }: { isCollapsed?: boolean }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { analytics, tasks } = useAppData();
   
   const menuItems = [
     { icon: Home, label: 'Dashboard', path: '/', active: location.pathname === '/' },
-    { icon: CheckSquare, label: 'Tasks', path: '/tasks', active: location.pathname === '/tasks' },
-    { icon: Calendar, label: 'Calendar', path: '/calendar', active: location.pathname === '/calendar' },
+    { icon: CheckSquare, label: 'Tasks', path: '/tasks', active: location.pathname === '/tasks', count: analytics.totalTasks },
+    { icon: Calendar, label: 'Calendar', path: '/calendar', active: location.pathname === '/calendar', count: analytics.overdueTasks },
     { icon: Users, label: 'Team', path: '/team', active: location.pathname === '/team' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics', active: location.pathname === '/analytics' },
     { icon: Settings, label: 'Settings', path: '/settings', active: location.pathname === '/settings' },
   ];
 
+  // Dynamic platform stats based on actual task data
   const platforms = [
-    { name: 'Instagram', color: 'bg-pink-500', count: 12 },
-    { name: 'Facebook', color: 'bg-blue-600', count: 8 },  
-    { name: 'TikTok', color: 'bg-black', count: 15 },
-    { name: 'LinkedIn', color: 'bg-blue-500', count: 6 },
-    { name: 'Twitter', color: 'bg-sky-400', count: 9 },
-  ];
+    { name: 'Instagram', color: 'bg-pink-500', count: analytics.tasksByPlatform.instagram || 0 },
+    { name: 'Facebook', color: 'bg-blue-600', count: analytics.tasksByPlatform.facebook || 0 },  
+    { name: 'TikTok', color: 'bg-black', count: analytics.tasksByPlatform.tiktok || 0 },
+    { name: 'LinkedIn', color: 'bg-blue-500', count: analytics.tasksByPlatform.linkedin || 0 },
+    { name: 'Twitter', color: 'bg-sky-400', count: analytics.tasksByPlatform.twitter || 0 },
+  ].filter(platform => platform.count > 0); // Only show platforms with tasks
 
   return (
     <div className={cn(
@@ -82,23 +85,33 @@ const Sidebar = ({ isCollapsed = false }: { isCollapsed?: boolean }) => {
               key={index}
               onClick={() => navigate(item.path)}
               className={cn(
-                "w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200",
+                "w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200",
                 item.active 
                   ? "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-600 border border-blue-200" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               )}
             >
-              <item.icon className={cn("w-5 h-5", item.active && "text-blue-600")} />
-              {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              <div className="flex items-center space-x-3">
+                <item.icon className={cn("w-5 h-5", item.active && "text-blue-600")} />
+                {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              </div>
+              {!isCollapsed && item.count !== undefined && item.count > 0 && (
+                <span className={cn(
+                  "text-xs px-2 py-1 rounded-full",
+                  item.active ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
+                )}>
+                  {item.count}
+                </span>
+              )}
             </button>
           ))}
         </nav>
 
-        {/* Platform Stats */}
-        {!isCollapsed && (
+        {/* Platform Stats - Now dynamic */}
+        {!isCollapsed && platforms.length > 0 && (
           <div className="p-4 mt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">Platforms</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Active Platforms</h3>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
             <div className="space-y-3">

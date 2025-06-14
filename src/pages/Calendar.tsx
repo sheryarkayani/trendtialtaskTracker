@@ -1,424 +1,337 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useAppData } from '@/contexts/AppDataContext';
+import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  Filter,
-  Clock,
-  MapPin,
-  Users
-} from 'lucide-react';
-import { useTasks } from '@/hooks/useTasks';
-import { useTeam } from '@/hooks/useTeam';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
 
 const Calendar = () => {
-  const { tasks } = useTasks();
-  const { teamMembers } = useTeam();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [filterPlatform, setFilterPlatform] = useState('all');
+  const { user, loading: authLoading } = useAuth();
+  const { tasks, tasksLoading, teamMembers } = useAppData();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Get tasks for a specific date
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Generate calendar days
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  // Get tasks for specific date
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
       if (!task.due_date) return false;
-      return isSameDay(parseISO(task.due_date), date);
-    }).filter(task => {
-      if (filterPlatform === 'all') return true;
-      return task.platform === filterPlatform;
+      return isSameDay(new Date(task.due_date), date);
     });
   };
 
   // Get tasks for selected date
-  const selectedDateTasks = getTasksForDate(selectedDate);
+  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
-  // Get all days in current month with their tasks
-  const monthDays = eachDayOfInterval({
-    start: startOfMonth(currentMonth),
-    end: endOfMonth(currentMonth)
-  });
+  // Calendar navigation
+  const goToPreviousMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const goToNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
+  // Task summary for current month
+  const monthTasks = useMemo(() => {
+    return tasks.filter(task => {
+      if (!task.due_date) return false;
+      const taskDate = new Date(task.due_date);
+      return isSameMonth(taskDate, currentDate);
+    });
+  }, [tasks, currentDate]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-500';
+      case 'in-progress': return 'bg-blue-500';
+      case 'review': return 'bg-yellow-500';
+      case 'todo': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'review': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'border-red-500 bg-red-50';
+      case 'medium': return 'border-yellow-500 bg-yellow-50';
+      case 'low': return 'border-green-500 bg-green-50';
+      default: return 'border-gray-500 bg-gray-50';
     }
   };
 
-  const getPlatformIcon = (platform: string) => {
-    const icons: Record<string, string> = {
-      instagram: '📸',
-      facebook: '📘',
-      tiktok: '🎵',
-      linkedin: '💼',
-      twitter: '🐦'
-    };
-    return icons[platform] || '📱';
-  };
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newMonth = new Date(currentMonth);
-    if (direction === 'prev') {
-      newMonth.setMonth(currentMonth.getMonth() - 1);
-    } else {
-      newMonth.setMonth(currentMonth.getMonth() + 1);
-    }
-    setCurrentMonth(newMonth);
-  };
+  if (tasksLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-lg text-gray-600">Loading calendar...</div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CalendarIcon className="w-6 h-6" />
-              Calendar
-            </h1>
-            <p className="text-gray-600">Schedule and track your social media tasks</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={filterPlatform} onValueChange={setFilterPlatform}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Platforms</SelectItem>
-                <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="facebook">Facebook</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-                <SelectItem value="linkedin">LinkedIn</SelectItem>
-                <SelectItem value="twitter">Twitter</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm border">
-              <Button
-                variant={viewMode === 'month' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('month')}
-                className="text-xs"
-              >
-                Month
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('week')}
-                className="text-xs"
-              >
-                Week
-              </Button>
-              <Button
-                variant={viewMode === 'day' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('day')}
-                className="text-xs"
-              >
-                Day
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
+                <p className="text-gray-600">Track deadlines and schedule your social media tasks</p>
+              </div>
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Schedule Task
               </Button>
             </div>
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              New Event
-            </Button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Mini Calendar & Filters */}
-          <div className="space-y-6">
-            {/* Mini Calendar */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}>
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')}>
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
+            {/* Calendar Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">This Month</p>
+                      <p className="text-2xl font-bold text-gray-900">{monthTasks.length}</p>
+                    </div>
+                    <CalendarIcon className="w-8 h-8 text-blue-500" />
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  month={currentMonth}
-                  onMonthChange={setCurrentMonth}
-                  className="rounded-md border-0 p-0"
-                />
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Due Today</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {getTasksForDate(new Date()).length}
+                      </p>
+                    </div>
+                    <Clock className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Overdue</p>
+                      <p className="text-2xl font-bold text-red-600">
+                        {tasks.filter(task => 
+                          task.due_date && 
+                          new Date(task.due_date) < new Date() && 
+                          task.status !== 'completed'
+                        ).length}
+                      </p>
+                    </div>
+                    <Clock className="w-8 h-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Team Tasks</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {monthTasks.filter(task => task.assignee_id).length}
+                      </p>
+                    </div>
+                    <Users className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Tasks</span>
-                  <Badge variant="secondary">{tasks.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">This Month</span>
-                  <Badge variant="secondary">
-                    {tasks.filter(task => {
-                      if (!task.due_date) return false;
-                      const taskDate = parseISO(task.due_date);
-                      return taskDate.getMonth() === currentMonth.getMonth() && 
-                             taskDate.getFullYear() === currentMonth.getFullYear();
-                    }).length}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Overdue</span>
-                  <Badge variant="destructive">
-                    {tasks.filter(task => {
-                      if (!task.due_date || task.status === 'completed') return false;
-                      return parseISO(task.due_date) < new Date();
-                    }).length}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Completed</span>
-                  <Badge variant="default">
-                    {tasks.filter(task => task.status === 'completed').length}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Calendar View */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>
-                    {viewMode === 'month' && format(currentMonth, 'MMMM yyyy')}
-                    {viewMode === 'day' && format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                  </span>
-                  <Button variant="outline" size="sm">
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filter
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {viewMode === 'month' && (
-                  <div className="grid grid-cols-7 gap-1">
-                    {/* Week headers */}
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                      <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
-                        {day}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Calendar */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>{format(currentDate, 'MMMM yyyy')}</CardTitle>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" onClick={goToPreviousMonth}>
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button variant="outline" onClick={goToNextMonth}>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
                       </div>
-                    ))}
-                    
-                    {/* Calendar days */}
-                    {monthDays.map((day) => {
-                      const dayTasks = getTasksForDate(day);
-                      const isSelected = isSameDay(day, selectedDate);
-                      const isToday = isSameDay(day, new Date());
-                      
-                      return (
-                        <div
-                          key={day.toISOString()}
-                          onClick={() => setSelectedDate(day)}
-                          className={`
-                            min-h-[80px] p-1 border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors
-                            ${isSelected ? 'bg-blue-50 border-blue-200' : ''}
-                            ${isToday ? 'bg-yellow-50 border-yellow-200' : ''}
-                          `}
-                        >
-                          <div className={`
-                            text-sm font-medium mb-1
-                            ${isToday ? 'text-yellow-700' : ''}
-                            ${isSelected ? 'text-blue-700' : 'text-gray-700'}
-                          `}>
-                            {format(day, 'd')}
-                          </div>
-                          <div className="space-y-1">
-                            {dayTasks.slice(0, 2).map((task) => (
-                              <div
-                                key={task.id}
-                                className={`
-                                  text-xs px-1 py-0.5 rounded truncate
-                                  ${getStatusColor(task.status)}
-                                `}
-                                title={task.title}
-                              >
-                                {getPlatformIcon(task.platform || '')} {task.title}
-                              </div>
-                            ))}
-                            {dayTasks.length > 2 && (
-                              <div className="text-xs text-gray-500 px-1">
-                                +{dayTasks.length - 2} more
-                              </div>
-                            )}
-                          </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-1 mb-4">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                          {day}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {viewMode === 'day' && (
-                  <div className="space-y-4">
-                    {selectedDateTasks.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p>No tasks scheduled for this day</p>
-                      </div>
-                    ) : (
-                      selectedDateTasks.map((task) => {
-                        const assignee = teamMembers.find(member => member.id === task.assignee_id);
+                      ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map(day => {
+                        const dayTasks = getTasksForDate(day);
+                        const isSelected = selectedDate && isSameDay(day, selectedDate);
+                        
                         return (
-                          <div key={task.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`} />
-                                <h3 className="font-medium text-gray-900">{task.title}</h3>
-                                {task.platform && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {getPlatformIcon(task.platform)} {task.platform}
-                                  </Badge>
-                                )}
-                              </div>
-                              <Badge className={getStatusColor(task.status)}>
-                                {task.status}
-                              </Badge>
+                          <div
+                            key={day.toString()}
+                            onClick={() => setSelectedDate(day)}
+                            className={`
+                              relative p-2 h-24 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
+                              ${isToday(day) ? 'bg-blue-50 border-blue-200' : ''}
+                              ${isSelected ? 'ring-2 ring-blue-500' : ''}
+                            `}
+                          >
+                            <div className={`text-sm ${isToday(day) ? 'font-bold text-blue-600' : 'text-gray-900'}`}>
+                              {format(day, 'd')}
                             </div>
-                            {task.description && (
-                              <p className="text-sm text-gray-600 mb-3">{task.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              {task.due_date && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  <span>{format(parseISO(task.due_date), 'h:mm a')}</span>
-                                </div>
-                              )}
-                              {assignee && (
-                                <div className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  <span>{assignee.first_name} {assignee.last_name}</span>
+                            
+                            {/* Task indicators */}
+                            <div className="mt-1 space-y-1">
+                              {dayTasks.slice(0, 2).map((task, index) => (
+                                <div
+                                  key={task.id}
+                                  className={`h-1 rounded ${getStatusColor(task.status)}`}
+                                  title={task.title}
+                                />
+                              ))}
+                              {dayTasks.length > 2 && (
+                                <div className="text-xs text-gray-500">
+                                  +{dayTasks.length - 2} more
                                 </div>
                               )}
                             </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-          {/* Task Details Sidebar */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  {format(selectedDate, 'EEEE, MMM d')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedDateTasks.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
-                    <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No tasks for this day</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedDateTasks.map((task) => {
-                      const assignee = teamMembers.find(member => member.id === task.assignee_id);
-                      return (
-                        <div key={task.id} className="border rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-                            <h4 className="font-medium text-sm text-gray-900 truncate">{task.title}</h4>
-                          </div>
-                          {task.platform && (
-                            <div className="flex items-center gap-1 mb-2">
-                              <span className="text-xs">{getPlatformIcon(task.platform)}</span>
-                              <span className="text-xs text-gray-600 capitalize">{task.platform}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <Badge className={getStatusColor(task.status)}>
-                              {task.status}
-                            </Badge>
-                            {assignee && (
-                              <span className="text-xs text-gray-500 truncate">
-                                {assignee.first_name}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Tasks */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Upcoming</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {tasks
-                    .filter(task => {
-                      if (!task.due_date || task.status === 'completed') return false;
-                      const taskDate = parseISO(task.due_date);
-                      return taskDate > selectedDate;
-                    })
-                    .slice(0, 5)
-                    .map((task) => (
-                      <div key={task.id} className="flex items-center gap-3 text-sm">
-                        <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{task.title}</p>
-                          <p className="text-xs text-gray-500">
-                            {task.due_date && format(parseISO(task.due_date), 'MMM d')}
-                          </p>
-                        </div>
+              {/* Selected Date Tasks */}
+              <div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Select a date'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedDate ? (
+                      <div className="space-y-3">
+                        {selectedDateTasks.length > 0 ? (
+                          selectedDateTasks.map(task => {
+                            const assignee = teamMembers.find(member => member.id === task.assignee_id);
+                            return (
+                              <div key={task.id} className={`p-3 rounded-lg border-l-4 ${getPriorityColor(task.priority)}`}>
+                                <div className="flex items-start justify-between mb-2">
+                                  <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                                  <Badge className="capitalize">
+                                    {task.status}
+                                  </Badge>
+                                </div>
+                                {task.description && (
+                                  <p className="text-xs text-gray-600 mb-2">{task.description}</p>
+                                )}
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <span>{task.priority} priority</span>
+                                  {assignee && (
+                                    <span>{assignee.first_name} {assignee.last_name}</span>
+                                  )}
+                                </div>
+                                {task.platform && (
+                                  <div className="mt-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {task.platform}
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-gray-500 text-center py-8">No tasks scheduled for this date</p>
+                        )}
                       </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">Click on a date to view scheduled tasks</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Upcoming Deadlines */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Upcoming Deadlines</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {tasks
+                        .filter(task => 
+                          task.due_date && 
+                          new Date(task.due_date) >= new Date() && 
+                          task.status !== 'completed'
+                        )
+                        .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+                        .slice(0, 5)
+                        .map(task => {
+                          const daysUntilDue = Math.ceil(
+                            (new Date(task.due_date!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                          );
+                          return (
+                            <div key={task.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {daysUntilDue === 0 ? 'Due today' : `${daysUntilDue} days`}
+                                </p>
+                              </div>
+                              <Badge className="capitalize">
+                                {task.priority}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

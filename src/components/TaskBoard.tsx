@@ -6,7 +6,7 @@ import CreateTaskDialog from './CreateTaskDialog';
 import { useTasks } from '@/hooks/useTasks';
 
 const TaskBoard = () => {
-  const { tasks, loading, updateTaskStatus } = useTasks();
+  const { tasks, loading, refetch } = useTasks();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const columns = [
@@ -36,8 +36,13 @@ const TaskBoard = () => {
     return tasks.filter(task => task.status === columnId);
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
-    await updateTaskStatus(taskId, newStatus as any);
+  const handleTaskUpdate = async () => {
+    await refetch();
+  };
+
+  const handleTaskCreated = () => {
+    setShowCreateDialog(false);
+    refetch();
   };
 
   if (loading) {
@@ -105,7 +110,7 @@ const TaskBoard = () => {
                   <TaskCard 
                     key={task.id} 
                     task={task} 
-                    onStatusChange={handleStatusChange}
+                    onUpdate={handleTaskUpdate}
                   />
                 ))}
                 
@@ -125,7 +130,8 @@ const TaskBoard = () => {
 
       <CreateTaskDialog 
         open={showCreateDialog} 
-        onOpenChange={setShowCreateDialog} 
+        onOpenChange={setShowCreateDialog}
+        onSuccess={handleTaskCreated}
       />
     </div>
   );
