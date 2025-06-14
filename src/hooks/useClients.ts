@@ -1,0 +1,87 @@
+
+import { useState, useEffect } from 'react';
+import { useAuth } from './useAuth';
+import { Client } from '@/types/client';
+import { 
+  fetchClients as apiFetchClients,
+  createClient as apiCreateClient,
+  updateClient as apiUpdateClient,
+  deleteClient as apiDeleteClient
+} from '@/api/clientApi';
+
+export const useClients = () => {
+  const { user } = useAuth();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchClients = async () => {
+    if (!user) return;
+    
+    try {
+      const fetchedClients = await apiFetchClients();
+      setClients(fetchedClients);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up clients hook for user:', user.id);
+    fetchClients();
+  }, [user?.id]);
+
+  const createClient = async (clientData: {
+    name: string;
+    email?: string;
+    company?: string;
+    description?: string;
+    brand_color?: string;
+  }) => {
+    if (!user) return;
+    
+    try {
+      await apiCreateClient(clientData, user.id);
+      await fetchClients();
+    } catch (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
+  };
+
+  const updateClient = async (clientId: string, updates: Partial<Client>) => {
+    if (!user) return;
+    
+    try {
+      await apiUpdateClient(clientId, updates, user.id);
+      await fetchClients();
+    } catch (error) {
+      console.error('Error updating client:', error);
+      throw error;
+    }
+  };
+
+  const deleteClient = async (clientId: string) => {
+    if (!user) return;
+    
+    try {
+      await apiDeleteClient(clientId, user.id);
+      await fetchClients();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      throw error;
+    }
+  };
+
+  return { 
+    clients, 
+    loading, 
+    refetch: fetchClients, 
+    createClient,
+    updateClient,
+    deleteClient
+  };
+};

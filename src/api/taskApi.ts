@@ -9,6 +9,7 @@ export const fetchTasks = async () => {
     .select(`
       *,
       assignee:profiles!assignee_id(first_name, last_name),
+      client:clients!client_id(id, name, company, brand_color),
       comments_count:comments(count),
       attachments_count:attachments(count)
     `)
@@ -97,6 +98,7 @@ export const createTask = async (taskData: {
   priority?: Task['priority'];
   platform?: Task['platform'];
   assignee_id?: string;
+  client_id?: string;
   project_id?: string;
   due_date?: string;
 }, userId: string) => {

@@ -9,6 +9,7 @@ export interface Task {
   assignee_id: string | null;
   project_id: string | null;
   organization_id: string | null;
+  client_id: string | null;
   due_date: string | null;
   completed_at: string | null;
   created_at: string;
@@ -16,6 +17,12 @@ export interface Task {
   assignee?: {
     first_name: string | null;
     last_name: string | null;
+  };
+  client?: {
+    id: string;
+    name: string;
+    company: string | null;
+    brand_color: string | null;
   };
   comments_count?: number;
   attachments_count?: number;

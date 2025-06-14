@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { User, Calendar as CalendarIcon } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Building2 } from 'lucide-react';
 import { Task } from '@/types/task';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +58,16 @@ const TaskListView = ({ filteredTasks, teamMembers }: TaskListViewProps) => {
                       {task.platform && (
                         <Badge variant="outline" className="text-xs">
                           {getPlatformIcon(task.platform)} {task.platform}
+                        </Badge>
+                      )}
+                      {task.client && (
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs border-l-4"
+                          style={{ borderLeftColor: task.client.brand_color || '#3B82F6' }}
+                        >
+                          <Building2 className="w-3 h-3 mr-1" />
+                          {task.client.name}
                         </Badge>
                       )}
                     </div>

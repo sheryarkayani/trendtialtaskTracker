@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3 } from 'lucide-react';
+import { Plus, BarChart3, List, Building2 } from 'lucide-react';
 
 interface TaskHeaderProps {
-  viewMode: 'list' | 'kanban';
-  setViewMode: (mode: 'list' | 'kanban') => void;
+  viewMode: 'list' | 'kanban' | 'clients';
+  setViewMode: (mode: 'list' | 'kanban' | 'clients') => void;
   onCreateTask: () => void;
 }
 
@@ -33,7 +33,17 @@ const TaskHeader = ({ viewMode, setViewMode, onCreateTask }: TaskHeaderProps) =>
             onClick={() => setViewMode('list')}
             className="text-xs"
           >
-            List View
+            <List className="w-4 h-4 mr-1" />
+            List
+          </Button>
+          <Button
+            variant={viewMode === 'clients' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('clients')}
+            className="text-xs"
+          >
+            <Building2 className="w-4 h-4 mr-1" />
+            Clients
           </Button>
         </div>
         <Button onClick={onCreateTask} className="flex items-center gap-2">

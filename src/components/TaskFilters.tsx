@@ -3,7 +3,8 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Users, Building2 } from 'lucide-react';
+import { Client } from '@/types/client';
 
 interface TaskFiltersProps {
   searchTerm: string;
@@ -16,7 +17,10 @@ interface TaskFiltersProps {
   setPlatformFilter: (platform: string) => void;
   assigneeFilter: string;
   setAssigneeFilter: (assignee: string) => void;
+  clientFilter: string;
+  setClientFilter: (client: string) => void;
   teamMembers: Array<{ id: string; first_name: string | null; last_name: string | null; }>;
+  clients: Client[];
   onClearFilters: () => void;
 }
 
@@ -31,13 +35,16 @@ const TaskFilters = ({
   setPlatformFilter,
   assigneeFilter,
   setAssigneeFilter,
+  clientFilter,
+  setClientFilter,
   teamMembers,
+  clients,
   onClearFilters
 }: TaskFiltersProps) => {
   return (
     <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border">
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <div className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <div className="relative md:col-span-2">
           <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Search campaigns..."
@@ -46,6 +53,30 @@ const TaskFilters = ({
             className="pl-10"
           />
         </div>
+
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              <SelectValue placeholder="Client" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            {clients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: client.brand_color || '#3B82F6' }}
+                  />
+                  {client.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger>
             <SelectValue placeholder="Status" />
@@ -58,6 +89,7 @@ const TaskFilters = ({
             <SelectItem value="completed">Published</SelectItem>
           </SelectContent>
         </Select>
+
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
           <SelectTrigger>
             <SelectValue placeholder="Priority" />
@@ -69,6 +101,7 @@ const TaskFilters = ({
             <SelectItem value="low">Low Priority</SelectItem>
           </SelectContent>
         </Select>
+
         <Select value={platformFilter} onValueChange={setPlatformFilter}>
           <SelectTrigger>
             <SelectValue placeholder="Platform" />
@@ -82,9 +115,13 @@ const TaskFilters = ({
             <SelectItem value="twitter">🐦 Twitter</SelectItem>
           </SelectContent>
         </Select>
+
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
           <SelectTrigger>
-            <SelectValue placeholder="Team Member" />
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <SelectValue placeholder="Assignee" />
+            </div>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Team Members</SelectItem>
@@ -95,6 +132,7 @@ const TaskFilters = ({
             ))}
           </SelectContent>
         </Select>
+
         <Button 
           variant="outline" 
           onClick={onClearFilters}

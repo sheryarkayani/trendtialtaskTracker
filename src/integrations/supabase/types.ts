@@ -98,6 +98,95 @@ export type Database = {
           },
         ]
       }
+      client_team_assignments: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          role: string | null
+          team_member_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          role?: string | null
+          team_member_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          role?: string | null
+          team_member_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_team_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_team_assignments_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          brand_color: string | null
+          company: string | null
+          created_at: string
+          description: string | null
+          email: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          organization_id: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_color?: string | null
+          company?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          organization_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_color?: string | null
+          company?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          organization_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           content: string
@@ -268,6 +357,7 @@ export type Database = {
       tasks: {
         Row: {
           assignee_id: string | null
+          client_id: string | null
           completed_at: string | null
           created_at: string | null
           description: string | null
@@ -283,6 +373,7 @@ export type Database = {
         }
         Insert: {
           assignee_id?: string | null
+          client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
@@ -298,6 +389,7 @@ export type Database = {
         }
         Update: {
           assignee_id?: string | null
+          client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
@@ -317,6 +409,13 @@ export type Database = {
             columns: ["assignee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {

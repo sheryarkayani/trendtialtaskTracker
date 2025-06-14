@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Clock, User, MessageCircle, Paperclip, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Clock, User, MessageCircle, Paperclip, MoreHorizontal, Edit, Trash2, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/task';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -113,6 +113,19 @@ const TaskCard = ({ task, onUpdate, updateTaskStatus, isDragging }: TaskCardProp
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Client Badge */}
+      {task.client && (
+        <div className="mb-3">
+          <div 
+            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border-l-4 bg-gray-50"
+            style={{ borderLeftColor: task.client.brand_color || '#3B82F6' }}
+          >
+            <Building2 className="w-3 h-3 mr-1" />
+            {task.client.name}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="mb-4">
