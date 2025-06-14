@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -25,12 +24,16 @@ export interface Task {
   attachments_count?: number;
 }
 
+// Global singleton for realtime subscription
+let globalChannel: any = null;
+let subscriberCount = 0;
+let globalUserId: string | null = null;
+
 export const useTasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const channelRef = useRef<any>(null);
-  const isSubscribedRef = useRef(false);
+  const subscribedRef = useRef(false);
 
   const fetchTasks = async () => {
     if (!user) return;
@@ -68,57 +71,73 @@ export const useTasks = () => {
     }
   };
 
+  const setupGlobalRealtime = (userId: string) => {
+    if (globalChannel || !userId) return;
+
+    console.log('Setting up global realtime subscription for user:', userId);
+    
+    globalChannel = supabase
+      .channel(`tasks-global-${userId}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => { 
+          console.log('Tasks updated via realtime:', payload);
+          // Trigger refetch for all subscribers
+          window.dispatchEvent(new CustomEvent('tasks-updated'));
+        }
+      )
+      .subscribe((status) => {
+        console.log('Global tasks realtime status:', status);
+      });
+  };
+
+  const cleanupGlobalRealtime = () => {
+    if (globalChannel && subscriberCount === 0) {
+      console.log('Cleaning up global realtime subscription');
+      supabase.removeChannel(globalChannel);
+      globalChannel = null;
+      globalUserId = null;
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
     console.log('Setting up tasks hook for user:', user.id);
-
+    subscriberCount++;
+    
     // Initial fetch
     fetchTasks();
 
-    // Set up realtime subscription only if not already subscribed
-    const setupRealtime = () => {
-      // Clean up any existing channel first
-      if (channelRef.current) {
-        console.log('Cleaning up existing channel');
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-        isSubscribedRef.current = false;
+    // Set up global realtime if user changed or doesn't exist
+    if (globalUserId !== user.id) {
+      if (globalChannel) {
+        supabase.removeChannel(globalChannel);
+        globalChannel = null;
       }
+      globalUserId = user.id;
+      setupGlobalRealtime(user.id);
+    } else if (!globalChannel) {
+      setupGlobalRealtime(user.id);
+    }
 
-      // Only create new channel if we haven't subscribed yet
-      if (!isSubscribedRef.current) {
-        const channelName = `tasks-${user.id}-${Date.now()}`;
-        console.log('Creating new realtime channel:', channelName);
-        
-        channelRef.current = supabase
-          .channel(channelName)
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'tasks' },
-            (payload) => { 
-              console.log('Tasks updated via realtime:', payload);
-              fetchTasks(); 
-            }
-          )
-          .subscribe((status) => {
-            console.log('Tasks realtime status:', status);
-            if (status === 'SUBSCRIBED') {
-              isSubscribedRef.current = true;
-            }
-          });
-      }
+    // Listen for global task updates
+    const handleTasksUpdated = () => {
+      fetchTasks();
     };
 
-    setupRealtime();
+    window.addEventListener('tasks-updated', handleTasksUpdated);
+    subscribedRef.current = true;
 
     // Cleanup function
     return () => {
-      console.log('Cleanup: removing tasks channel');
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      isSubscribedRef.current = false;
+      console.log('Cleanup: removing tasks hook subscriber');
+      subscriberCount--;
+      subscribedRef.current = false;
+      window.removeEventListener('tasks-updated', handleTasksUpdated);
+      
+      // Clean up global channel if no more subscribers
+      setTimeout(cleanupGlobalRealtime, 100);
     };
   }, [user?.id]);
 
