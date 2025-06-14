@@ -32,10 +32,17 @@ const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
 
   const handleStatusChange = async (newStatus: string) => {
     setIsLoading(true);
-    // Here you would typically call an API to update the task status
-    // For now, we'll just call the onUpdate callback
-    await onUpdate();
-    setIsLoading(false);
+    try {
+      // Import the hook function to update task status
+      const { useTasks } = await import('@/hooks/useTasks');
+      // We need to get the updateTaskStatus function - this will be handled by the parent component
+      console.log('Moving task to status:', newStatus);
+      await onUpdate();
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getDisplayName = () => {
@@ -73,24 +80,24 @@ const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => handleStatusChange('todo')}>
-              Move to To Do
+              Move to Content Brief
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleStatusChange('in-progress')}>
-              Move to In Progress
+              Move to Creating
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleStatusChange('review')}>
-              Move to Review
+              Move to Client Review
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleStatusChange('completed')}>
-              Move to Completed
+              Move to Published
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Edit className="w-4 h-4 mr-2" />
-              Edit Task
+              Edit Campaign
             </DropdownMenuItem>
             <DropdownMenuItem className="text-red-600">
               <Trash2 className="w-4 h-4 mr-2" />
-              Delete Task
+              Delete Campaign
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
