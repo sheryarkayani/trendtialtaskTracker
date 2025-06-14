@@ -1,129 +1,129 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Mail, Phone, Building2, MapPin, DollarSign, Users, FileText, MessageSquare, Plus, Upload } from 'lucide-react';
-import { Client, ClientCommunication, ClientFile } from '@/types/client';
-import { Task } from '@/types/task';
-import { useTasks } from '@/hooks/useTasks';
-import { useAuth } from '@/hooks/useAuth';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
+import { Client, ClientCommunication } from '@/types/client';
+import { 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  DollarSign, 
+  User, 
+  MessageSquare,
+  FileText,
+  Clock,
+  Plus,
+  Send,
+  X
+} from 'lucide-react';
 
 interface ClientDetailModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   client: Client | null;
+  isOpen: boolean;
+  onClose: () => void;
   onUpdate: (clientId: string, updates: Partial<Client>) => void;
 }
 
-const ClientDetailModal = ({ open, onOpenChange, client, onUpdate }: ClientDetailModalProps) => {
-  const { tasks } = useTasks();
+const ClientDetailModal = ({ client, isOpen, onClose, onUpdate }: ClientDetailModalProps) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { toast } = useToast();
   const [communications, setCommunications] = useState<ClientCommunication[]>([]);
-  const [files, setFiles] = useState<ClientFile[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [newCommunication, setNewCommunication] = useState({
-    type: 'note' as const,
+    type: 'note' as 'email' | 'phone' | 'meeting' | 'note',
     subject: '',
     content: '',
-    priority: 'normal' as const
+    priority: 'normal' as 'low' | 'normal' | 'high'
   });
 
   useEffect(() => {
-    if (client && open) {
+    if (client && isOpen) {
       fetchCommunications();
-      fetchFiles();
     }
-  }, [client, open]);
+  }, [client?.id, isOpen]);
 
   const fetchCommunications = async () => {
     if (!client) return;
     
-    const { data, error } = await supabase
-      .from('client_communications')
-      .select(`
-        *,
-        user:profiles(first_name, last_name)
-      `)
-      .eq('client_id', client.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('client_communications')
+        .select(`
+          *,
+          user:profiles!client_communications_user_id_fkey(
+            first_name,
+            last_name
+          )
+        `)
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false });
 
-    if (error) {
+      if (error) throw error;
+      
+      // Type-safe conversion
+      const typedCommunications: ClientCommunication[] = (data || []).map(comm => ({
+        ...comm,
+        type: comm.type as 'email' | 'phone' | 'meeting' | 'note'
+      }));
+      
+      setCommunications(typedCommunications);
+    } catch (error) {
       console.error('Error fetching communications:', error);
-    } else {
-      setCommunications(data || []);
-    }
-  };
-
-  const fetchFiles = async () => {
-    if (!client) return;
-    
-    const { data, error } = await supabase
-      .from('client_files')
-      .select(`
-        *,
-        uploader:profiles(first_name, last_name)
-      `)
-      .eq('client_id', client.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching files:', error);
-    } else {
-      setFiles(data || []);
     }
   };
 
   const addCommunication = async () => {
-    if (!client || !user || !newCommunication.content) return;
+    if (!client || !user || !newCommunication.content.trim()) return;
 
-    setLoading(true);
-    const { error } = await supabase
-      .from('client_communications')
-      .insert([{
-        client_id: client.id,
-        user_id: user.id,
-        ...newCommunication
-      }]);
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('client_communications')
+        .insert([{
+          client_id: client.id,
+          user_id: user.id,
+          type: newCommunication.type,
+          subject: newCommunication.subject || null,
+          content: newCommunication.content,
+          priority: newCommunication.priority
+        }]);
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add communication",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Communication logged successfully"
-      });
+      if (error) throw error;
+
+      await fetchCommunications();
       setNewCommunication({
         type: 'note',
         subject: '',
         content: '',
         priority: 'normal'
       });
-      fetchCommunications();
+
+      toast({
+        title: "Communication logged",
+        description: "Successfully added communication entry.",
+      });
+    } catch (error) {
+      console.error('Error adding communication:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add communication entry.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setLoading(false);
   };
 
   if (!client) return null;
-
-  const clientTasks = tasks.filter(task => task.client_id === client.id);
-  const activeCampaigns = clientTasks.filter(task => task.status !== 'completed').length;
-  const completedCampaigns = clientTasks.filter(task => task.status === 'completed').length;
 
   const getHealthColor = (status: string) => {
     switch (status) {
@@ -134,38 +134,51 @@ const ClientDetailModal = ({ open, onOpenChange, client, onUpdate }: ClientDetai
     }
   };
 
+  const formatCommunicationType = (type: string) => {
+    switch (type) {
+      case 'email': return 'Email';
+      case 'phone': return 'Phone Call';
+      case 'meeting': return 'Meeting';
+      case 'note': return 'Note';
+      default: return type;
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={client.logo_url || ''} alt={client.name} />
-              <AvatarFallback className="text-lg font-semibold">
-                {client.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <DialogTitle className="text-2xl">{client.name}</DialogTitle>
-              {client.company && (
-                <p className="text-gray-600 flex items-center gap-1 mt-1">
-                  <Building2 className="w-4 h-4" />
-                  {client.company}
-                </p>
-              )}
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                  {client.status}
-                </Badge>
-                <Badge className={getHealthColor(client.health_status)}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="w-16 h-16">
+                <AvatarFallback className="text-xl font-semibold">
+                  {client.name.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <DialogTitle className="text-2xl font-bold">{client.name}</DialogTitle>
+                {client.company && (
+                  <p className="text-gray-600">{client.company}</p>
+                )}
+                <Badge className={`mt-1 ${getHealthColor(client.health_status)}`}>
                   {client.health_status.replace('_', ' ')}
                 </Badge>
               </div>
             </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Mail className="w-4 h-4 mr-2" />
+                Email
+              </Button>
+              <Button variant="outline" size="sm">
+                <Calendar className="w-4 h-4 mr-2" />
+                Schedule
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="overview" className="mt-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
@@ -173,13 +186,11 @@ const ClientDetailModal = ({ open, onOpenChange, client, onUpdate }: ClientDetai
             <TabsTrigger value="files">Files</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 max-h-96 overflow-y-auto">
             <div className="grid grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Contact Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Contact Information</h3>
+                <div className="space-y-3">
                   {client.email && (
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-gray-500" />
@@ -198,260 +209,123 @@ const ClientDetailModal = ({ open, onOpenChange, client, onUpdate }: ClientDetai
                       <span>{client.address}</span>
                     </div>
                   )}
-                  {client.preferred_communication && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Preferred: </span>
-                      <span className="capitalize">{client.preferred_communication}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Contract Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Contract Details</h3>
+                <div className="space-y-3">
                   {client.contract_start_date && (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-500" />
-                      <span>Started: {new Date(client.contract_start_date).toLocaleDateString()}</span>
+                      <span>Start: {new Date(client.contract_start_date).toLocaleDateString()}</span>
                     </div>
                   )}
                   {client.contract_end_date && (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-500" />
-                      <span>Ends: {new Date(client.contract_end_date).toLocaleDateString()}</span>
+                      <span>End: {new Date(client.contract_end_date).toLocaleDateString()}</span>
                     </div>
                   )}
                   {client.monthly_retainer && (
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-gray-500" />
-                      <span>${client.monthly_retainer}/month</span>
+                      <span>Monthly: ${client.monthly_retainer}</span>
                     </div>
                   )}
-                  {client.client_size && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Size: </span>
-                      <span className="capitalize">{client.client_size}</span>
+                  {client.account_manager && (
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-500" />
+                      <span>Manager: {client.account_manager.first_name} {client.account_manager.last_name}</span>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
 
             {client.description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700">{client.description}</p>
-                </CardContent>
-              </Card>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Description</h3>
+                <p className="text-gray-600">{client.description}</p>
+              </div>
             )}
           </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{activeCampaigns}</div>
-                  <div className="text-sm text-gray-600">Active Campaigns</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{completedCampaigns}</div>
-                  <div className="text-sm text-gray-600">Completed</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-600">{clientTasks.length}</div>
-                  <div className="text-sm text-gray-600">Total Tasks</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-3">
-              {clientTasks.map(task => (
-                <Card key={task.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">{task.title}</h4>
-                        <p className="text-sm text-gray-600">{task.description}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={task.status === 'completed' ? 'default' : 'secondary'}>
-                          {task.status}
-                        </Badge>
-                        <Badge variant={task.priority === 'high' ? 'destructive' : 'outline'}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {clientTasks.length === 0 && (
-                <Card>
-                  <CardContent className="p-8 text-center text-gray-500">
-                    No campaigns found for this client
-                  </CardContent>
-                </Card>
-              )}
+          <TabsContent value="campaigns" className="max-h-96 overflow-y-auto">
+            <div className="text-center py-8 text-gray-500">
+              <p>Campaign management coming soon...</p>
             </div>
           </TabsContent>
 
-          <TabsContent value="communication" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Add Communication</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={newCommunication.type} onValueChange={(value: any) => 
-                      setNewCommunication(prev => ({ ...prev, type: value }))
-                    }>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="phone">Phone Call</SelectItem>
-                        <SelectItem value="meeting">Meeting</SelectItem>
-                        <SelectItem value="note">Note</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Priority</Label>
-                    <Select value={newCommunication.priority} onValueChange={(value: any) => 
-                      setNewCommunication(prev => ({ ...prev, priority: value }))
-                    }>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label>Subject</Label>
-                  <Input
-                    value={newCommunication.subject}
-                    onChange={(e) => setNewCommunication(prev => ({ ...prev, subject: e.target.value }))}
-                    placeholder="Communication subject"
-                  />
-                </div>
-                <div>
-                  <Label>Content</Label>
-                  <Textarea
-                    value={newCommunication.content}
-                    onChange={(e) => setNewCommunication(prev => ({ ...prev, content: e.target.value }))}
-                    placeholder="Communication details..."
-                    rows={3}
-                  />
-                </div>
-                <Button onClick={addCommunication} disabled={loading || !newCommunication.content}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Communication
-                </Button>
-              </CardContent>
-            </Card>
+          <TabsContent value="communication" className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="border rounded-lg p-4 space-y-4">
+              <h4 className="font-semibold">Add Communication</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <Select value={newCommunication.type} onValueChange={(value: 'email' | 'phone' | 'meeting' | 'note') => setNewCommunication(prev => ({ ...prev, type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="phone">Phone Call</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                    <SelectItem value="note">Note</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={newCommunication.priority} onValueChange={(value: 'low' | 'normal' | 'high') => setNewCommunication(prev => ({ ...prev, priority: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low Priority</SelectItem>
+                    <SelectItem value="normal">Normal Priority</SelectItem>
+                    <SelectItem value="high">High Priority</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Subject (optional)"
+                  value={newCommunication.subject}
+                  onChange={(e) => setNewCommunication(prev => ({ ...prev, subject: e.target.value }))}
+                />
+              </div>
+              <Textarea
+                placeholder="Communication details..."
+                value={newCommunication.content}
+                onChange={(e) => setNewCommunication(prev => ({ ...prev, content: e.target.value }))}
+                rows={3}
+              />
+              <Button onClick={addCommunication} disabled={isLoading || !newCommunication.content.trim()}>
+                <Send className="w-4 h-4 mr-2" />
+                Add Entry
+              </Button>
+            </div>
 
             <div className="space-y-3">
-              {communications.map(comm => (
-                <Card key={comm.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="capitalize">
-                            {comm.type}
-                          </Badge>
-                          <Badge variant={comm.priority === 'high' ? 'destructive' : 'secondary'}>
-                            {comm.priority}
-                          </Badge>
-                          <span className="text-sm text-gray-500">
-                            {formatDistanceToNow(new Date(comm.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                        {comm.subject && (
-                          <h4 className="font-medium mb-1">{comm.subject}</h4>
-                        )}
-                        <p className="text-gray-700">{comm.content}</p>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        by {comm.user?.first_name} {comm.user?.last_name}
-                      </div>
+              <h4 className="font-semibold">Communication History</h4>
+              {communications.map((comm) => (
+                <div key={comm.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{formatCommunicationType(comm.type)}</Badge>
+                      {comm.priority === 'high' && <Badge variant="destructive">High Priority</Badge>}
+                      {comm.subject && <span className="font-medium">{comm.subject}</span>}
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>{comm.user?.first_name} {comm.user?.last_name}</span>
+                      <Clock className="w-4 h-4" />
+                      <span>{new Date(comm.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">{comm.content}</p>
+                </div>
               ))}
-              {communications.length === 0 && (
-                <Card>
-                  <CardContent className="p-8 text-center text-gray-500">
-                    No communications logged yet
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="files" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Upload Files</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-600">Drag and drop files here, or click to select</p>
-                  <Button variant="outline" className="mt-2">
-                    Select Files
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-3">
-              {files.map(file => (
-                <Card key={file.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <div className="font-medium">{file.file_name}</div>
-                          <div className="text-sm text-gray-500">
-                            {file.file_size && `${(file.file_size / 1024).toFixed(1)} KB`} • 
-                            Uploaded {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
-                          </div>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Download
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {files.length === 0 && (
-                <Card>
-                  <CardContent className="p-8 text-center text-gray-500">
-                    No files uploaded yet
-                  </CardContent>
-                </Card>
-              )}
+          <TabsContent value="files" className="max-h-96 overflow-y-auto">
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p>File management coming soon...</p>
             </div>
           </TabsContent>
         </Tabs>

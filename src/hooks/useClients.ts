@@ -21,10 +21,13 @@ export const useClients = () => {
     
     try {
       const fetchedClients = await apiFetchClients();
-      // Ensure proper type casting for status field
-      const typedClients = fetchedClients.map(client => ({
+      // Ensure proper type casting for all string fields that have enum constraints
+      const typedClients: Client[] = fetchedClients.map(client => ({
         ...client,
-        status: client.status as 'active' | 'inactive' | 'archived'
+        status: client.status as 'active' | 'inactive' | 'archived',
+        client_size: client.client_size as 'small' | 'medium' | 'large' | 'enterprise' | null,
+        preferred_communication: client.preferred_communication as 'email' | 'phone' | 'slack' | 'teams' | null,
+        health_status: client.health_status as 'healthy' | 'needs_attention' | 'issues'
       }));
       setClients(typedClients);
     } catch (error) {
@@ -61,6 +64,16 @@ export const useClients = () => {
     company?: string;
     description?: string;
     brand_color?: string;
+    phone?: string;
+    address?: string;
+    industry?: string;
+    client_size?: 'small' | 'medium' | 'large' | 'enterprise';
+    preferred_communication?: 'email' | 'phone' | 'slack' | 'teams';
+    time_zone?: string;
+    account_manager_id?: string;
+    contract_start_date?: string;
+    contract_end_date?: string;
+    monthly_retainer?: number;
   }) => {
     if (!user) return;
     
