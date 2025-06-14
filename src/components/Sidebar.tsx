@@ -10,17 +10,40 @@ import {
   Building2,
   Settings 
 } from 'lucide-react';
+import { useProfile } from '@/hooks/useProfile';
 
 const Sidebar = () => {
-  const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/tasks', icon: CheckSquare, label: 'Campaigns' },
-    { to: '/clients', icon: Building2, label: 'Clients' },
-    { to: '/team', icon: Users, label: 'Team' },
-    { to: '/analytics', icon: BarChart3, label: 'Analytics' },
-    { to: '/calendar', icon: Calendar, label: 'Calendar' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
-  ];
+  const { profile } = useProfile();
+  
+  // Define navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/tasks', icon: CheckSquare, label: 'Campaigns' },
+    ];
+
+    // Only show additional pages for team leads and admins
+    if (profile?.role === 'team_lead') {
+      return [
+        ...baseItems,
+        { to: '/clients', icon: Building2, label: 'Clients' },
+        { to: '/team', icon: Users, label: 'Team' },
+        { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+        { to: '/calendar', icon: Calendar, label: 'Calendar' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ];
+    }
+
+    // Team members and clients only see limited pages
+    return [
+      ...baseItems,
+      { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+      { to: '/calendar', icon: Calendar, label: 'Calendar' },
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div className="bg-white w-64 min-h-screen shadow-lg border-r border-gray-200">

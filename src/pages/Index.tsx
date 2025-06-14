@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { useAppData } from '@/contexts/AppDataContext';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import PriorityAlerts from '@/components/dashboard/PriorityAlerts';
@@ -17,10 +18,10 @@ import TeamPerformanceChart from '@/components/dashboard/TeamPerformanceChart';
 import PlatformTrendsChart from '@/components/dashboard/PlatformTrendsChart';
 import QuickActionsPanel from '@/components/dashboard/QuickActionsPanel';
 import NotificationsFeed from '@/components/dashboard/NotificationsFeed';
-import { AlertTriangle, TrendingUp, Users, Clock } from 'lucide-react';
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
   const { analytics, tasksLoading, teamLoading, teamMembers } = useAppData();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -51,6 +52,8 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const isTeamLead = profile?.role === 'team_lead';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Enhanced Header Section */}
@@ -58,15 +61,22 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Command Center</h1>
-              <p className="text-blue-100">Real-time insights and campaign management</p>
+              <h1 className="text-3xl font-bold mb-2">
+                {isTeamLead ? 'Command Center' : 'My Dashboard'}
+              </h1>
+              <p className="text-blue-100">
+                {isTeamLead 
+                  ? 'Real-time insights and campaign management' 
+                  : 'Track your tasks and progress'
+                }
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 bg-white/10 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                 <span className="text-sm">Live Data</span>
               </div>
-              <QuickActionsPanel />
+              {isTeamLead && <QuickActionsPanel />}
             </div>
           </div>
         </div>
@@ -79,35 +89,63 @@ const Index = () => {
         {/* Priority Alerts Section */}
         <PriorityAlerts />
 
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column - Task Overview */}
-          <div className="lg:col-span-4 space-y-6">
-            <TaskOverviewWidget />
-            <TeamWorkloadWidget />
-          </div>
+        {/* Main Dashboard Grid - Different layout for team members */}
+        {isTeamLead ? (
+          <>
+            {/* Team Lead View - Full Dashboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column - Task Overview */}
+              <div className="lg:col-span-4 space-y-6">
+                <TaskOverviewWidget />
+                <TeamWorkloadWidget />
+              </div>
 
-          {/* Middle Column - Campaign Performance */}
-          <div className="lg:col-span-5 space-y-6">
-            <CampaignPipelineWidget />
-            <PlatformPerformanceWidget />
-            <RecentActivityWidget />
-          </div>
+              {/* Middle Column - Campaign Performance */}
+              <div className="lg:col-span-5 space-y-6">
+                <CampaignPipelineWidget />
+                <PlatformPerformanceWidget />
+                <RecentActivityWidget />
+              </div>
 
-          {/* Right Column - Client & Analytics */}
-          <div className="lg:col-span-3 space-y-6">
-            <ClientHealthWidget />
-            <PerformanceAnalyticsWidget />
-            <NotificationsFeed />
-          </div>
-        </div>
+              {/* Right Column - Client & Analytics */}
+              <div className="lg:col-span-3 space-y-6">
+                <ClientHealthWidget />
+                <PerformanceAnalyticsWidget />
+                <NotificationsFeed />
+              </div>
+            </div>
 
-        {/* Interactive Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <WeeklyProgressChart />
-          <TeamPerformanceChart />
-          <PlatformTrendsChart />
-        </div>
+            {/* Interactive Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <WeeklyProgressChart />
+              <TeamPerformanceChart />
+              <PlatformTrendsChart />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Team Member View - Simplified Dashboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                <TaskOverviewWidget />
+                <PerformanceAnalyticsWidget />
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                <RecentActivityWidget />
+                <NotificationsFeed />
+              </div>
+            </div>
+
+            {/* Charts for Team Member */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <WeeklyProgressChart />
+              <PlatformTrendsChart />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

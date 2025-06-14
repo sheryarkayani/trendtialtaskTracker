@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
 import { useClients } from '@/hooks/useClients';
+import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/hooks/useAuth';
 import TaskHeader from '@/components/TaskHeader';
 import TaskFilters from '@/components/TaskFilters';
 import TaskStats from '@/components/TaskStats';
@@ -18,6 +20,8 @@ const Tasks = () => {
   const { tasks, loading, refetch } = useTasks();
   const { teamMembers } = useTeam();
   const { clients } = useClients();
+  const { profile } = useProfile();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -28,7 +32,12 @@ const Tasks = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
 
-  const filteredTasks = tasks.filter(task => {
+  const isTeamLead = profile?.role === 'team_lead';
+
+  // Filter tasks based on user role
+  const userTasks = isTeamLead ? tasks : tasks.filter(task => task.assignee_id === user?.id);
+
+  const filteredTasks = userTasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
@@ -59,7 +68,7 @@ const Tasks = () => {
   };
 
   const getClientTaskCount = (clientId: string) => {
-    return tasks.filter(task => task.client_id === clientId).length;
+    return userTasks.filter(task => task.client_id === clientId).length;
   };
 
   if (loading) {
@@ -79,9 +88,10 @@ const Tasks = () => {
           viewMode={viewMode}
           setViewMode={setViewMode}
           onCreateTask={() => setCreateDialogOpen(true)}
+          showClientView={isTeamLead}
         />
 
-        {viewMode === 'clients' && (
+        {viewMode === 'clients' && isTeamLead && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Client Management</h2>
@@ -99,7 +109,7 @@ const Tasks = () => {
                   key={client.id}
                   client={client}
                   taskCount={getClientTaskCount(client.id)}
-                  teamCount={0} // TODO: Implement team assignments
+                  teamCount={0}
                   onClick={() => setClientFilter(client.id)}
                 />
               ))}
@@ -121,14 +131,16 @@ const Tasks = () => {
             setAssigneeFilter={setAssigneeFilter}
             clientFilter={clientFilter}
             setClientFilter={setClientFilter}
-            teamMembers={teamMembers}
-            clients={clients}
+            teamMembers={isTeamLead ? teamMembers : []}
+            clients={isTeamLead ? clients : []}
             onClearFilters={handleClearFilters}
+            showAssigneeFilter={isTeamLead}
+            showClientFilter={isTeamLead}
           />
         )}
 
         <TaskStats 
-          tasks={tasks}
+          tasks={userTasks}
           filteredTasks={filteredTasks}
           viewMode={viewMode}
         />
@@ -138,7 +150,7 @@ const Tasks = () => {
         ) : viewMode === 'list' ? (
           <TaskListView 
             filteredTasks={filteredTasks}
-            teamMembers={teamMembers}
+            teamMembers={isTeamLead ? teamMembers : []}
           />
         ) : null}
 
@@ -148,11 +160,13 @@ const Tasks = () => {
           onSuccess={handleTaskCreated}
         />
 
-        <CreateClientDialog 
-          open={createClientDialogOpen} 
-          onOpenChange={setCreateClientDialogOpen}
-          onSuccess={handleClientCreated}
-        />
+        {isTeamLead && (
+          <CreateClientDialog 
+            open={createClientDialogOpen} 
+            onOpenChange={setCreateClientDialogOpen}
+            onSuccess={handleClientCreated}
+          />
+        )}
       </div>
     </div>
   );

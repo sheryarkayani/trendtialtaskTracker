@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import Index from '@/pages/Index';
 import Tasks from '@/pages/Tasks';
 import Team from '@/pages/Team';
@@ -33,8 +34,22 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/tasks" element={<Tasks />} />
-                <Route path="/clients" element={<Clients />} />
-                <Route path="/team" element={<Team />} />
+                <Route 
+                  path="/clients" 
+                  element={
+                    <ProtectedRoute allowedRoles={['team_lead']}>
+                      <Clients />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/team" 
+                  element={
+                    <ProtectedRoute allowedRoles={['team_lead']}>
+                      <Team />
+                    </ProtectedRoute>
+                  } 
+                />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/settings" element={<Settings />} />
