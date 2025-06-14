@@ -7,7 +7,7 @@ import { Task } from '@/types/task';
 interface TaskStatsProps {
   tasks: Task[];
   filteredTasks: Task[];
-  viewMode: 'list' | 'kanban';
+  viewMode: 'list' | 'kanban' | 'clients';
 }
 
 const TaskStats = ({ tasks, filteredTasks, viewMode }: TaskStatsProps) => {
