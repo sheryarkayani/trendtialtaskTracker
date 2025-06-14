@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTasks } from '@/hooks/useTasks';
 import { toast } from '@/hooks/use-toast';
+import { Task } from '@/types/task';
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -21,8 +22,8 @@ const CreateTaskDialog = ({ open, onOpenChange, onSuccess }: CreateTaskDialogPro
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium' as const,
-    platform: '' as const,
+    priority: 'medium' as Task['priority'],
+    platform: '' as Task['platform'] | '',
     due_date: ''
   });
 

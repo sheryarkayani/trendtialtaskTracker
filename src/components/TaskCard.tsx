@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Clock, User, MessageCircle, Paperclip, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Task } from '@/hooks/useTasks';
+import { Task } from '@/types/task';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
