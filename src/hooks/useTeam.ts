@@ -40,6 +40,21 @@ export const useTeam = () => {
 
       const organizationId = currentUserProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
       
+      // Update any profiles that don't have an organization_id assigned to match the admin's organization
+      if (currentUserProfile?.organization_id) {
+        console.log('Fixing profiles without organization_id...');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ organization_id: organizationId })
+          .is('organization_id', null);
+        
+        if (updateError) {
+          console.error('Error updating profiles organization_id:', updateError);
+        } else {
+          console.log('Successfully updated profiles without organization_id');
+        }
+      }
+      
       // Fetch all profiles in the same organization, excluding current user
       const { data, error } = await supabase
         .from('profiles')

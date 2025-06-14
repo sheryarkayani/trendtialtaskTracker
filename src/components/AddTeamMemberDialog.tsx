@@ -37,6 +37,20 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     try {
       console.log('Starting team member creation process...');
       
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Get current user's organization first
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      const organizationId = currentUserProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
+      console.log('Using organization ID:', organizationId);
+      
       // Check if a profile already exists for this email
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
@@ -69,7 +83,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
             role: formData.role,
             bio: formData.bio || null,
             skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-            organization_id: '00000000-0000-0000-0000-000000000001'
+            organization_id: organizationId
           },
           emailRedirectTo: undefined // Don't send email verification
         }
@@ -96,17 +110,34 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
             role: formData.role,
             bio: formData.bio || null,
             skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-            organization_id: '00000000-0000-0000-0000-000000000001'
+            organization_id: organizationId
           });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't throw here as the user was still created
-          toast({
-            title: "Warning",
-            description: "User account created but profile setup had issues. The user may need to complete their profile.",
-            variant: "destructive",
-          });
+          // Try to update if insert failed (user might exist)
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              role: formData.role,
+              bio: formData.bio || null,
+              skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
+              organization_id: organizationId
+            })
+            .eq('id', authData.user.id);
+
+          if (updateError) {
+            console.error('Profile update error:', updateError);
+            toast({
+              title: "Warning",
+              description: "User account created but profile setup had issues. The user may need to complete their profile.",
+              variant: "destructive",
+            });
+          } else {
+            console.log('Profile updated successfully');
+          }
         } else {
           console.log('Profile created successfully');
         }
