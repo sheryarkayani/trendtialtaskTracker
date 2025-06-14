@@ -1,124 +1,86 @@
 
 import React from 'react';
-import { User, Clock, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone } from 'lucide-react';
+import { useTeam } from '@/hooks/useTeam';
 
 const TeamOverview = () => {
-  const teamMembers = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      role: 'Team Lead',
-      avatar: '',
-      status: 'online',
-      tasksCompleted: 12,
-      tasksInProgress: 3,
-      workload: 85
-    },
-    {
-      id: 2,
-      name: 'Alex Chen', 
-      role: 'Designer',
-      avatar: '',
-      status: 'online',
-      tasksCompleted: 8,
-      tasksInProgress: 5,
-      workload: 92
-    },
-    {
-      id: 3,
-      name: 'Maria Rodriguez',
-      role: 'Content Writer',
-      avatar: '',
-      status: 'away',
-      tasksCompleted: 15,
-      tasksInProgress: 2,
-      workload: 67
-    },
-    {
-      id: 4,
-      name: 'James Wilson',
-      role: 'Social Media Manager',
-      avatar: '',
-      status: 'offline',
-      tasksCompleted: 10,
-      tasksInProgress: 4,
-      workload: 78
-    }
-  ];
+  const { teamMembers, loading } = useTeam();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getWorkloadColor = (workload: number) => {
-    if (workload >= 90) return 'bg-red-500';
-    if (workload >= 70) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Team Overview</h3>
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="animate-pulse flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-gray-900">Team Overview</h3>
         <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-          Manage Team
+          View All
         </button>
       </div>
 
       <div className="space-y-4">
-        {teamMembers.map((member) => (
-          <div key={member.id} className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${getStatusColor(member.status)} rounded-full border-2 border-white`} />
+        {teamMembers.length === 0 ? (
+          <p className="text-gray-500 text-center py-4">No team members found</p>
+        ) : (
+          teamMembers.map((member) => (
+            <div key={member.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
               </div>
               
-              <div>
-                <h4 className="font-medium text-gray-900">{member.name}</h4>
-                <p className="text-sm text-gray-500">{member.role}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-6">
-              <div className="text-center">
-                <div className="flex items-center space-x-1 text-green-600">
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">{member.tasksCompleted}</span>
-                </div>
-                <p className="text-xs text-gray-500">Completed</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="flex items-center space-x-1 text-blue-600">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-sm font-medium">{member.tasksInProgress}</span>
-                </div>
-                <p className="text-xs text-gray-500">In Progress</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900">
+                  {member.first_name && member.last_name 
+                    ? `${member.first_name} ${member.last_name}`
+                    : 'Unknown User'
+                  }
+                </p>
+                <p className="text-sm text-gray-500 capitalize">{member.role.replace('_', ' ')}</p>
               </div>
 
-              <div className="text-center">
-                <div className="flex items-center space-x-2">
-                  <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${getWorkloadColor(member.workload)} transition-all duration-300`}
-                      style={{ width: `${member.workload}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">{member.workload}%</span>
-                </div>
-                <p className="text-xs text-gray-500">Workload</p>
+              <div className="flex items-center space-x-2">
+                <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                  <Mail className="w-4 h-4" />
+                </button>
+                <div className={`w-2 h-2 rounded-full ${Math.random() > 0.5 ? 'bg-green-500' : 'bg-gray-300'}`} />
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
+      {teamMembers.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Total Members</span>
+            <span className="font-medium text-gray-900">{teamMembers.length}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm mt-2">
+            <span className="text-gray-500">Online Now</span>
+            <span className="font-medium text-green-600">
+              {teamMembers.filter(() => Math.random() > 0.5).length}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -95,11 +95,22 @@ export const useTasks = () => {
     }
   };
 
-  const createTask = async (taskData: Partial<Task>) => {
+  const createTask = async (taskData: {
+    title: string;
+    description?: string;
+    priority?: Task['priority'];
+    platform?: Task['platform'];
+    assignee_id?: string;
+    project_id?: string;
+    due_date?: string;
+  }) => {
     try {
       const { error } = await supabase
         .from('tasks')
-        .insert([taskData]);
+        .insert([{
+          ...taskData,
+          organization_id: user?.user_metadata?.organization_id || '00000000-0000-0000-0000-000000000001'
+        }]);
 
       if (error) throw error;
       await fetchTasks();
@@ -108,11 +119,41 @@ export const useTasks = () => {
     }
   };
 
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update(updates)
+        .eq('id', taskId);
+
+      if (error) throw error;
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
   return { 
     tasks, 
     loading, 
     refetch: fetchTasks, 
     updateTaskStatus,
-    createTask 
+    createTask,
+    updateTask,
+    deleteTask
   };
 };
