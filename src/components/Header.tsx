@@ -1,8 +1,25 @@
 
 import React from 'react';
-import { Bell, Search, User, Settings, ChevronDown } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { Button } from '@/components/ui/button';
 
 const Header = () => {
+  const { signOut } = useAuth();
+  const { profile } = useProfile();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  const displayName = profile?.first_name && profile?.last_name 
+    ? `${profile.first_name} ${profile.last_name}`
+    : profile?.email || 'User';
+
+  const displayRole = profile?.role === 'team_lead' ? 'Team Lead' : 
+                     profile?.role === 'team_member' ? 'Team Member' : 'Client';
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -35,15 +52,26 @@ const Header = () => {
           </div>
 
           {/* User Profile */}
-          <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="hidden md:block">
+                <p className="text-sm font-medium text-gray-900">{displayName}</p>
+                <p className="text-xs text-gray-500">{displayRole}</p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
-            <div className="hidden md:block">
-              <p className="text-sm font-medium text-gray-900">Sarah Johnson</p>
-              <p className="text-xs text-gray-500">Team Lead</p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>

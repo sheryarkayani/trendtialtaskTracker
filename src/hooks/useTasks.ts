@@ -1,0 +1,118 @@
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'todo' | 'in-progress' | 'review' | 'completed';
+  priority: 'low' | 'medium' | 'high';
+  platform: 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'twitter' | null;
+  assignee_id: string | null;
+  project_id: string | null;
+  organization_id: string | null;
+  due_date: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  assignee?: {
+    first_name: string | null;
+    last_name: string | null;
+  };
+  comments_count?: number;
+  attachments_count?: number;
+}
+
+export const useTasks = () => {
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+      
+      // Set up realtime subscription
+      const channel = supabase
+        .channel('tasks-changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'tasks' },
+          () => { fetchTasks(); }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
+
+  const fetchTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          assignee:profiles!assignee_id(first_name, last_name),
+          comments_count:comments(count),
+          attachments_count:attachments(count)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Process the data to get counts
+      const processedTasks = data?.map(task => ({
+        ...task,
+        comments_count: task.comments_count?.[0]?.count || 0,
+        attachments_count: task.attachments_count?.[0]?.count || 0,
+      })) || [];
+
+      setTasks(processedTasks);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          status,
+          completed_at: status === 'completed' ? new Date().toISOString() : null
+        })
+        .eq('id', taskId);
+
+      if (error) throw error;
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+
+  const createTask = async (taskData: Partial<Task>) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .insert([taskData]);
+
+      if (error) throw error;
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+  };
+
+  return { 
+    tasks, 
+    loading, 
+    refetch: fetchTasks, 
+    updateTaskStatus,
+    createTask 
+  };
+};
