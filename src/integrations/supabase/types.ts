@@ -363,11 +363,16 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_timer_running: boolean | null
           organization_id: string | null
           platform: Database["public"]["Enums"]["platform_type"] | null
           priority: Database["public"]["Enums"]["task_priority"] | null
           project_id: string | null
           status: Database["public"]["Enums"]["task_status"] | null
+          subtasks_completed: number | null
+          subtasks_total: number | null
+          time_spent: number | null
+          timer_started_at: string | null
           title: string
           updated_at: string | null
         }
@@ -379,11 +384,16 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_timer_running?: boolean | null
           organization_id?: string | null
           platform?: Database["public"]["Enums"]["platform_type"] | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
+          subtasks_completed?: number | null
+          subtasks_total?: number | null
+          time_spent?: number | null
+          timer_started_at?: string | null
           title: string
           updated_at?: string | null
         }
@@ -395,11 +405,16 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_timer_running?: boolean | null
           organization_id?: string | null
           platform?: Database["public"]["Enums"]["platform_type"] | null
           priority?: Database["public"]["Enums"]["task_priority"] | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"] | null
+          subtasks_completed?: number | null
+          subtasks_total?: number | null
+          time_spent?: number | null
+          timer_started_at?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -430,6 +445,57 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_logs: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration: number | null
+          end_time: string | null
+          id: string
+          is_manual_entry: boolean | null
+          start_time: string
+          task_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          end_time?: string | null
+          id?: string
+          is_manual_entry?: boolean | null
+          start_time: string
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          end_time?: string | null
+          id?: string
+          is_manual_entry?: boolean | null
+          start_time?: string
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
