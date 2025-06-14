@@ -31,9 +31,13 @@ export const useTasks = () => {
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<any>(null);
   const isSubscribedRef = useRef(false);
+  const fetchedRef = useRef(false);
 
   const fetchTasks = async () => {
+    if (!user) return;
+    
     try {
+      console.log('Fetching tasks...');
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -44,7 +48,10 @@ export const useTasks = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        throw error;
+      }
       
       // Process the data to get counts
       const processedTasks = data?.map(task => ({
@@ -53,7 +60,9 @@ export const useTasks = () => {
         attachments_count: task.attachments_count?.[0]?.count || 0,
       })) || [];
 
+      console.log('Tasks fetched successfully:', processedTasks.length);
       setTasks(processedTasks);
+      fetchedRef.current = true;
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -62,30 +71,33 @@ export const useTasks = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !fetchedRef.current) {
       fetchTasks();
       
-      // Only set up realtime if not already subscribed
+      // Only set up realtime if not already subscribed and user is authenticated
       if (!isSubscribedRef.current) {
         // Clean up any existing channel first
         if (channelRef.current) {
+          console.log('Cleaning up existing channel');
           supabase.removeChannel(channelRef.current);
           channelRef.current = null;
         }
         
         // Set up realtime subscription with unique channel name
-        const channelName = `tasks-changes-${user.id}-${Date.now()}-${Math.random()}`;
+        const channelName = `tasks-realtime-${user.id}-${Date.now()}`;
+        console.log('Setting up realtime channel:', channelName);
+        
         channelRef.current = supabase
           .channel(channelName)
           .on('postgres_changes', 
             { event: '*', schema: 'public', table: 'tasks' },
-            () => { 
-              console.log('Tasks updated via realtime');
+            (payload) => { 
+              console.log('Tasks updated via realtime:', payload);
               fetchTasks(); 
             }
           )
           .subscribe((status) => {
-            console.log('Tasks channel status:', status);
+            console.log('Tasks realtime status:', status);
             if (status === 'SUBSCRIBED') {
               isSubscribedRef.current = true;
             } else if (status === 'CLOSED') {
@@ -97,24 +109,41 @@ export const useTasks = () => {
 
     return () => {
       if (channelRef.current) {
+        console.log('Cleanup: removing tasks channel');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         isSubscribedRef.current = false;
       }
     };
-  }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
+  }, [user?.id]);
 
   const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+    if (!user) return;
+    
     try {
+      console.log('Updating task status:', taskId, status);
       const { error } = await supabase
         .from('tasks')
         .update({ 
           status,
-          completed_at: status === 'completed' ? new Date().toISOString() : null
+          completed_at: status === 'completed' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
         })
         .eq('id', taskId);
 
       if (error) throw error;
+      
+      // Create activity log
+      await supabase
+        .from('activity_logs')
+        .insert([{
+          user_id: user.id,
+          action: `moved task to ${status}`,
+          entity_type: 'task',
+          entity_id: taskId
+        }]);
+        
+      console.log('Task status updated successfully');
       await fetchTasks();
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -130,15 +159,31 @@ export const useTasks = () => {
     project_id?: string;
     due_date?: string;
   }) => {
+    if (!user) return;
+    
     try {
+      console.log('Creating new task:', taskData);
       const { error } = await supabase
         .from('tasks')
         .insert([{
           ...taskData,
-          organization_id: user?.user_metadata?.organization_id || '00000000-0000-0000-0000-000000000001'
+          organization_id: '00000000-0000-0000-0000-000000000001', // Default org
+          status: 'todo' as const
         }]);
 
       if (error) throw error;
+      
+      // Create activity log
+      await supabase
+        .from('activity_logs')
+        .insert([{
+          user_id: user.id,
+          action: `created new task "${taskData.title}"`,
+          entity_type: 'task',
+          entity_id: null
+        }]);
+        
+      console.log('Task created successfully');
       await fetchTasks();
     } catch (error) {
       console.error('Error creating task:', error);
@@ -146,13 +191,31 @@ export const useTasks = () => {
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    if (!user) return;
+    
     try {
+      console.log('Updating task:', taskId, updates);
       const { error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', taskId);
 
       if (error) throw error;
+      
+      // Create activity log
+      await supabase
+        .from('activity_logs')
+        .insert([{
+          user_id: user.id,
+          action: 'updated task details',
+          entity_type: 'task',
+          entity_id: taskId
+        }]);
+        
+      console.log('Task updated successfully');
       await fetchTasks();
     } catch (error) {
       console.error('Error updating task:', error);
@@ -160,13 +223,28 @@ export const useTasks = () => {
   };
 
   const deleteTask = async (taskId: string) => {
+    if (!user) return;
+    
     try {
+      console.log('Deleting task:', taskId);
       const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId);
 
       if (error) throw error;
+      
+      // Create activity log
+      await supabase
+        .from('activity_logs')
+        .insert([{
+          user_id: user.id,
+          action: 'deleted task',
+          entity_type: 'task',
+          entity_id: taskId
+        }]);
+        
+      console.log('Task deleted successfully');
       await fetchTasks();
     } catch (error) {
       console.error('Error deleting task:', error);
