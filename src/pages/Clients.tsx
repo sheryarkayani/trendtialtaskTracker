@@ -5,7 +5,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Building2 } from 'lucide-react';
 import CreateClientDialog from '@/components/CreateClientDialog';
 import EditClientDialog from '@/components/EditClientDialog';
 import ClientManagementCard from '@/components/ClientManagementCard';

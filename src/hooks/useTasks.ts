@@ -83,6 +83,18 @@ export const useTasks = () => {
     }
   };
 
+  const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+    if (!user) return;
+    
+    try {
+      await apiUpdateTask(taskId, { status }, user.id);
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      throw error;
+    }
+  };
+
   const deleteTask = async (taskId: string) => {
     if (!user) return;
     
@@ -101,6 +113,7 @@ export const useTasks = () => {
     refetch: fetchTasks, 
     createTask,
     updateTask,
+    updateTaskStatus,
     deleteTask
   };
 };
