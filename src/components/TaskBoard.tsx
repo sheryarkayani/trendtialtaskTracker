@@ -1,41 +1,44 @@
 
 import React, { useState } from 'react';
-import { Plus, Filter, MoreHorizontal, Calendar, User, Clock, MessageCircle, Paperclip, Edit, Trash2 } from 'lucide-react';
+import { Plus, Filter, MoreHorizontal, Move } from 'lucide-react';
 import TaskCard from './TaskCard';
 import CreateTaskDialog from './CreateTaskDialog';
 import { useTasks } from '@/hooks/useTasks';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
 const TaskBoard = () => {
   const { tasks, loading, refetch, updateTaskStatus } = useTasks();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [draggedTask, setDraggedTask] = useState<string | null>(null);
 
   const columns = [
     {
       id: 'todo', 
       title: 'Content Brief',
       color: 'bg-gray-100',
+      borderColor: 'border-gray-300',
       description: 'New campaigns & content ideas'
     },
     {
       id: 'in-progress',
       title: 'Creating', 
-      color: 'bg-blue-100',
+      color: 'bg-blue-50',
+      borderColor: 'border-blue-300',
       description: 'Content in production'
     },
     {
       id: 'review',
       title: 'Client Review',
-      color: 'bg-yellow-100',
+      color: 'bg-yellow-50',
+      borderColor: 'border-yellow-300',
       description: 'Pending client approval'
     },
     {
       id: 'completed',
       title: 'Published',
-      color: 'bg-green-100',
+      color: 'bg-green-50',
+      borderColor: 'border-green-300',
       description: 'Live content'
     }
   ];
@@ -51,6 +54,38 @@ const TaskBoard = () => {
   const handleTaskCreated = () => {
     setShowCreateDialog(false);
     refetch();
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetStatus: string) => {
+    e.preventDefault();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { taskId, currentStatus } = data;
+      
+      if (currentStatus !== targetStatus) {
+        console.log('Dropping task:', taskId, 'to status:', targetStatus);
+        await updateTaskStatus(taskId, targetStatus as any);
+        await handleTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error dropping task:', error);
+    }
+    
+    setDraggedTask(null);
+  };
+
+  const handleDragStart = (taskId: string) => {
+    setDraggedTask(taskId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTask(null);
   };
 
   if (loading) {
@@ -110,36 +145,55 @@ const TaskBoard = () => {
         </div>
       </div>
 
-      {/* Board Columns */}
+      {/* Kanban Board Columns */}
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {columns.map((column) => {
             const columnTasks = getTasksForColumn(column.id);
             return (
-              <div key={column.id} className="bg-gray-50 rounded-xl p-4">
+              <div 
+                key={column.id} 
+                className={cn(
+                  "rounded-xl p-4 min-h-[500px] transition-all duration-200",
+                  column.color,
+                  draggedTask && "border-2 border-dashed",
+                  draggedTask ? column.borderColor : "border-transparent"
+                )}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, column.id)}
+              >
                 {/* Enhanced Column Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('-100', '-500')}`} />
+                    <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('-50', '-500').replace('-100', '-500')}`} />
                     <div>
                       <h3 className="font-semibold text-gray-900">{column.title}</h3>
                       <p className="text-xs text-gray-500">{column.description}</p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {columnTasks.length}
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {columnTasks.length}
+                    </Badge>
+                    <Move className="w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
 
                 {/* Tasks */}
                 <div className="space-y-4">
                   {columnTasks.map((task) => (
-                    <EnhancedTaskCard 
-                      key={task.id} 
-                      task={task} 
-                      onUpdate={handleTaskUpdate}
-                      updateTaskStatus={updateTaskStatus}
-                    />
+                    <div
+                      key={task.id}
+                      onDragStart={() => handleDragStart(task.id)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <TaskCard 
+                        task={task} 
+                        onUpdate={handleTaskUpdate}
+                        updateTaskStatus={updateTaskStatus}
+                        isDragging={draggedTask === task.id}
+                      />
+                    </div>
                   ))}
                   
                   {/* Add Task Button */}
@@ -162,152 +216,6 @@ const TaskBoard = () => {
         onOpenChange={setShowCreateDialog}
         onSuccess={handleTaskCreated}
       />
-    </div>
-  );
-};
-
-// Enhanced TaskCard component that can handle status updates
-const EnhancedTaskCard = ({ task, onUpdate, updateTaskStatus }) => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const priorityColors = {
-    high: 'bg-red-100 text-red-600 border-red-200',
-    medium: 'bg-yellow-100 text-yellow-600 border-yellow-200', 
-    low: 'bg-green-100 text-green-600 border-green-200'
-  };
-
-  const platformColors = {
-    instagram: 'bg-pink-500',
-    facebook: 'bg-blue-600',
-    tiktok: 'bg-black',
-    linkedin: 'bg-blue-700',
-    twitter: 'bg-sky-500'
-  };
-
-  const isOverdue = task.due_date && new Date(task.due_date) < new Date();
-
-  const handleStatusChange = async (newStatus: string) => {
-    setIsLoading(true);
-    try {
-      console.log('Moving task to status:', newStatus);
-      await updateTaskStatus(task.id, newStatus);
-      await onUpdate();
-    } catch (error) {
-      console.error('Error updating task status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getDisplayName = () => {
-    if (task.assignee?.first_name || task.assignee?.last_name) {
-      return `${task.assignee.first_name || ''} ${task.assignee.last_name || ''}`.trim();
-    }
-    return 'Unassigned';
-  };
-
-  const formatDueDate = () => {
-    if (!task.due_date) return 'No due date';
-    return format(new Date(task.due_date), 'MMM dd');
-  };
-  
-  return (
-    <div className={cn(
-      "bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-lg transition-all duration-200 cursor-pointer group",
-      isLoading && "opacity-50"
-    )}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          {task.platform && (
-            <div className={cn("w-3 h-3 rounded-full", platformColors[task.platform])} />
-          )}
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            {task.platform || 'General'}
-          </span>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded transition-all">
-              <MoreHorizontal className="w-4 h-4 text-gray-400" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleStatusChange('todo')}>
-              Move to Content Brief
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleStatusChange('in-progress')}>
-              Move to Creating
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleStatusChange('review')}>
-              Move to Client Review
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleStatusChange('completed')}>
-              Move to Published
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Campaign
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Campaign
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Content */}
-      <div className="mb-4">
-        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{task.title}</h3>
-        {task.description && (
-          <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-        )}
-      </div>
-
-      {/* Priority Badge */}
-      <div className="mb-4">
-        <span className={cn(
-          "inline-flex px-3 py-1 rounded-full text-xs font-medium border",
-          priorityColors[task.priority || 'medium']
-        )}>
-          {(task.priority || 'medium').charAt(0).toUpperCase() + (task.priority || 'medium').slice(1)} Priority
-        </span>
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between">
-        {/* Assignee */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-sm text-gray-600">{getDisplayName()}</span>
-        </div>
-
-        {/* Meta Info */}
-        <div className="flex items-center space-x-3 text-gray-400">
-          {(task.comments_count || 0) > 0 && (
-            <div className="flex items-center space-x-1">
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-xs">{task.comments_count}</span>
-            </div>
-          )}
-          {(task.attachments_count || 0) > 0 && (
-            <div className="flex items-center space-x-1">
-              <Paperclip className="w-4 h-4" />
-              <span className="text-xs">{task.attachments_count}</span>
-            </div>
-          )}
-          <div className={cn(
-            "flex items-center space-x-1",
-            isOverdue && "text-red-500"
-          )}>
-            <Clock className="w-4 h-4" />
-            <span className="text-xs">{formatDueDate()}</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

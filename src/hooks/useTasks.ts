@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -118,35 +117,76 @@ export const useTasks = () => {
   }, [user?.id]);
 
   const updateTaskStatus = async (taskId: string, status: Task['status']) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user authenticated');
+      return;
+    }
     
     try {
-      console.log('Updating task status:', taskId, status);
-      const { error } = await supabase
+      console.log('Updating task status - TaskID:', taskId, 'New Status:', status);
+      
+      // First, check if the task exists
+      const { data: existingTask, error: fetchError } = await supabase
+        .from('tasks')
+        .select('id, status, title')
+        .eq('id', taskId)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching task before update:', fetchError);
+        throw fetchError;
+      }
+      
+      if (!existingTask) {
+        console.error('Task not found:', taskId);
+        throw new Error('Task not found');
+      }
+      
+      console.log('Found task:', existingTask.title, 'Current status:', existingTask.status);
+      
+      // Update the task status
+      const { data: updatedTask, error: updateError } = await supabase
         .from('tasks')
         .update({ 
           status,
           completed_at: status === 'completed' ? new Date().toISOString() : null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (updateError) {
+        console.error('Error updating task status:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Task status updated successfully:', updatedTask);
       
       // Create activity log
-      await supabase
-        .from('activity_logs')
-        .insert([{
-          user_id: user.id,
-          action: `moved task to ${status}`,
-          entity_type: 'task',
-          entity_id: taskId
-        }]);
+      try {
+        await supabase
+          .from('activity_logs')
+          .insert([{
+            user_id: user.id,
+            action: `moved task to ${status}`,
+            entity_type: 'task',
+            entity_id: taskId
+          }]);
+        console.log('Activity log created');
+      } catch (activityError) {
+        console.warn('Failed to create activity log:', activityError);
+        // Don't throw here, as the main task update succeeded
+      }
         
-      console.log('Task status updated successfully');
+      console.log('Task status update completed successfully');
+      
+      // Refresh tasks to get the latest data
       await fetchTasks();
+      
     } catch (error) {
-      console.error('Error updating task status:', error);
+      console.error('Error in updateTaskStatus:', error);
+      throw error;
     }
   };
 
@@ -256,8 +296,103 @@ export const useTasks = () => {
     loading, 
     refetch: fetchTasks, 
     updateTaskStatus,
-    createTask,
-    updateTask,
-    deleteTask
+    createTask: async (taskData: {
+      title: string;
+      description?: string;
+      priority?: Task['priority'];
+      platform?: Task['platform'];
+      assignee_id?: string;
+      project_id?: string;
+      due_date?: string;
+    }) => {
+      if (!user) return;
+      
+      try {
+        console.log('Creating new task:', taskData);
+        const { error } = await supabase
+          .from('tasks')
+          .insert([{
+            ...taskData,
+            organization_id: '00000000-0000-0000-0000-000000000001', // Default org
+            status: 'todo' as const
+          }]);
+
+        if (error) throw error;
+        
+        // Create activity log
+        await supabase
+          .from('activity_logs')
+          .insert([{
+            user_id: user.id,
+            action: `created new task "${taskData.title}"`,
+            entity_type: 'task',
+            entity_id: null
+          }]);
+          
+        console.log('Task created successfully');
+        await fetchTasks();
+      } catch (error) {
+        console.error('Error creating task:', error);
+      }
+    },
+    updateTask: async (taskId: string, updates: Partial<Task>) => {
+      if (!user) return;
+      
+      try {
+        console.log('Updating task:', taskId, updates);
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', taskId);
+
+        if (error) throw error;
+        
+        // Create activity log
+        await supabase
+          .from('activity_logs')
+          .insert([{
+            user_id: user.id,
+            action: 'updated task details',
+            entity_type: 'task',
+            entity_id: taskId
+          }]);
+          
+        console.log('Task updated successfully');
+        await fetchTasks();
+      } catch (error) {
+        console.error('Error updating task:', error);
+      }
+    },
+    deleteTask: async (taskId: string) => {
+      if (!user) return;
+      
+      try {
+        console.log('Deleting task:', taskId);
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
+
+        if (error) throw error;
+        
+        // Create activity log
+        await supabase
+          .from('activity_logs')
+          .insert([{
+            user_id: user.id,
+            action: 'deleted task',
+            entity_type: 'task',
+            entity_id: taskId
+          }]);
+          
+        console.log('Task deleted successfully');
+        await fetchTasks();
+      } catch (error) {
+        console.error('Error deleting task:', error);
+      }
+    }
   };
 };

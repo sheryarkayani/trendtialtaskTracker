@@ -9,9 +9,11 @@ import { format } from 'date-fns';
 interface TaskCardProps {
   task: Task;
   onUpdate: () => Promise<void>;
+  updateTaskStatus: (taskId: string, status: Task['status']) => Promise<void>;
+  isDragging?: boolean;
 }
 
-const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
+const TaskCard = ({ task, onUpdate, updateTaskStatus, isDragging }: TaskCardProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const priorityColors = {
@@ -30,13 +32,11 @@ const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
 
   const isOverdue = task.due_date && new Date(task.due_date) < new Date();
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: Task['status']) => {
     setIsLoading(true);
     try {
-      // Import the hook function to update task status
-      const { useTasks } = await import('@/hooks/useTasks');
-      // We need to get the updateTaskStatus function - this will be handled by the parent component
-      console.log('Moving task to status:', newStatus);
+      console.log('Moving task to status:', newStatus, 'Task ID:', task.id);
+      await updateTaskStatus(task.id, newStatus);
       await onUpdate();
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -58,10 +58,21 @@ const TaskCard = ({ task, onUpdate }: TaskCardProps) => {
   };
   
   return (
-    <div className={cn(
-      "bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-lg transition-all duration-200 cursor-pointer group",
-      isLoading && "opacity-50"
-    )}>
+    <div 
+      className={cn(
+        "bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing group",
+        isLoading && "opacity-50",
+        isDragging && "rotate-3 opacity-75 shadow-xl"
+      )}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+          taskId: task.id,
+          currentStatus: task.status
+        }));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-2">
