@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -20,14 +20,20 @@ export const useActivity = () => {
   const { user } = useAuth();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (user) {
       fetchActivities();
       
-      // Set up realtime subscription
-      const channel = supabase
-        .channel('activity-changes')
+      // Clean up any existing channel
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+      
+      // Set up realtime subscription with unique channel name
+      channelRef.current = supabase
+        .channel(`activity-changes-${user.id}`)
         .on('postgres_changes', 
           { event: 'INSERT', schema: 'public', table: 'activity_logs' },
           () => { fetchActivities(); }
@@ -35,7 +41,10 @@ export const useActivity = () => {
         .subscribe();
 
       return () => {
-        supabase.removeChannel(channel);
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
       };
     }
   }, [user]);

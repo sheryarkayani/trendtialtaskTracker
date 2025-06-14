@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -29,14 +29,20 @@ export const useTasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (user) {
       fetchTasks();
       
-      // Set up realtime subscription
-      const channel = supabase
-        .channel('tasks-changes')
+      // Clean up any existing channel
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+      
+      // Set up realtime subscription with unique channel name
+      channelRef.current = supabase
+        .channel(`tasks-changes-${user.id}`)
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'tasks' },
           () => { fetchTasks(); }
@@ -44,7 +50,10 @@ export const useTasks = () => {
         .subscribe();
 
       return () => {
-        supabase.removeChannel(channel);
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
       };
     }
   }, [user]);
