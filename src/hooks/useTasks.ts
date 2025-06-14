@@ -30,7 +30,7 @@ export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<any>(null);
-  const isInitializedRef = useRef(false);
+  const isSubscribedRef = useRef(false);
 
   const fetchTasks = async () => {
     if (!user) return;
@@ -69,39 +69,44 @@ export const useTasks = () => {
   };
 
   useEffect(() => {
-    if (!user || isInitializedRef.current) return;
+    if (!user) return;
 
-    console.log('Initializing tasks hook for user:', user.id);
-    isInitializedRef.current = true;
+    console.log('Setting up tasks hook for user:', user.id);
 
     // Initial fetch
     fetchTasks();
 
-    // Set up realtime subscription
+    // Set up realtime subscription only if not already subscribed
     const setupRealtime = () => {
-      // Clean up any existing channel
+      // Clean up any existing channel first
       if (channelRef.current) {
         console.log('Cleaning up existing channel');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+        isSubscribedRef.current = false;
       }
 
-      // Create new channel
-      const channelName = `tasks-realtime-${user.id}`;
-      console.log('Setting up realtime channel:', channelName);
-      
-      channelRef.current = supabase
-        .channel(channelName)
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'tasks' },
-          (payload) => { 
-            console.log('Tasks updated via realtime:', payload);
-            fetchTasks(); 
-          }
-        )
-        .subscribe((status) => {
-          console.log('Tasks realtime status:', status);
-        });
+      // Only create new channel if we haven't subscribed yet
+      if (!isSubscribedRef.current) {
+        const channelName = `tasks-${user.id}-${Date.now()}`;
+        console.log('Creating new realtime channel:', channelName);
+        
+        channelRef.current = supabase
+          .channel(channelName)
+          .on('postgres_changes', 
+            { event: '*', schema: 'public', table: 'tasks' },
+            (payload) => { 
+              console.log('Tasks updated via realtime:', payload);
+              fetchTasks(); 
+            }
+          )
+          .subscribe((status) => {
+            console.log('Tasks realtime status:', status);
+            if (status === 'SUBSCRIBED') {
+              isSubscribedRef.current = true;
+            }
+          });
+      }
     };
 
     setupRealtime();
@@ -113,7 +118,7 @@ export const useTasks = () => {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
-      isInitializedRef.current = false;
+      isSubscribedRef.current = false;
     };
   }, [user?.id]);
 
