@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, Calendar as CalendarIcon, User, BarChart3 } from 'lucide-react';
+import { Plus, Search, Filter, Calendar as CalendarIcon, User, BarChart3, Target, Zap } from 'lucide-react';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
 import TaskCard from '@/components/TaskCard';
@@ -71,7 +71,7 @@ const Tasks = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-gray-600">Loading tasks...</div>
+          <div className="text-lg text-gray-600">Loading campaigns...</div>
         </div>
       </div>
     );
@@ -79,18 +79,24 @@ const Tasks = () => {
 
   const KanbanBoard = () => (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      {['todo', 'in-progress', 'review', 'completed'].map((status) => (
-        <div key={status} className="bg-white rounded-lg p-4 shadow-sm border">
+      {[
+        { id: 'todo', title: 'Content Brief', description: 'New campaigns & ideas' },
+        { id: 'in-progress', title: 'Creating', description: 'Content in production' },
+        { id: 'review', title: 'Client Review', description: 'Pending approval' },
+        { id: 'completed', title: 'Published', description: 'Live content' }
+      ].map((status) => (
+        <div key={status.id} className="bg-white rounded-lg p-4 shadow-sm border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 capitalize">
-              {status === 'in-progress' ? 'In Progress' : status}
-            </h3>
+            <div>
+              <h3 className="font-semibold text-gray-900">{status.title}</h3>
+              <p className="text-xs text-gray-500">{status.description}</p>
+            </div>
             <Badge variant="secondary" className="text-xs">
-              {getTasksByStatus(status).length}
+              {getTasksByStatus(status.id).length}
             </Badge>
           </div>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {getTasksByStatus(status).map((task) => (
+            {getTasksByStatus(status.id).map((task) => (
               <TaskCard 
                 key={task.id} 
                 task={task} 
@@ -122,7 +128,10 @@ const Tasks = () => {
                         {task.priority}
                       </Badge>
                       <Badge variant="secondary" className="text-xs capitalize">
-                        {task.status}
+                        {task.status === 'in-progress' ? 'Creating' : 
+                         task.status === 'todo' ? 'Brief' :
+                         task.status === 'review' ? 'Review' :
+                         task.status === 'completed' ? 'Published' : task.status}
                       </Badge>
                       {task.platform && (
                         <Badge variant="outline" className="text-xs">
@@ -160,11 +169,11 @@ const Tasks = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Enhanced Header for Social Media Agency */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-            <p className="text-gray-600">Manage and track your social media tasks</p>
+            <h1 className="text-2xl font-bold text-gray-900">Campaign Management</h1>
+            <p className="text-gray-600">Manage social media campaigns from brief to publication</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm border">
@@ -175,7 +184,7 @@ const Tasks = () => {
                 className="text-xs"
               >
                 <BarChart3 className="w-4 h-4 mr-1" />
-                Kanban
+                Pipeline
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -183,12 +192,12 @@ const Tasks = () => {
                 onClick={() => setViewMode('list')}
                 className="text-xs"
               >
-                List
+                List View
               </Button>
             </div>
             <Button onClick={() => setCreateDialogOpen(true)} className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              New Task
+              New Campaign
             </Button>
           </div>
         </div>
@@ -199,7 +208,7 @@ const Tasks = () => {
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search tasks..."
+                placeholder="Search campaigns..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -211,10 +220,10 @@ const Tasks = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="review">Review</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="todo">Content Brief</SelectItem>
+                <SelectItem value="in-progress">Creating</SelectItem>
+                <SelectItem value="review">Client Review</SelectItem>
+                <SelectItem value="completed">Published</SelectItem>
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -223,9 +232,9 @@ const Tasks = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="high">High Priority</SelectItem>
+                <SelectItem value="medium">Medium Priority</SelectItem>
+                <SelectItem value="low">Low Priority</SelectItem>
               </SelectContent>
             </Select>
             <Select value={platformFilter} onValueChange={setPlatformFilter}>
@@ -234,19 +243,19 @@ const Tasks = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Platforms</SelectItem>
-                <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="facebook">Facebook</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-                <SelectItem value="linkedin">LinkedIn</SelectItem>
-                <SelectItem value="twitter">Twitter</SelectItem>
+                <SelectItem value="instagram">📸 Instagram</SelectItem>
+                <SelectItem value="facebook">📘 Facebook</SelectItem>
+                <SelectItem value="tiktok">🎵 TikTok</SelectItem>
+                <SelectItem value="linkedin">💼 LinkedIn</SelectItem>
+                <SelectItem value="twitter">🐦 Twitter</SelectItem>
               </SelectContent>
             </Select>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Assignee" />
+                <SelectValue placeholder="Team Member" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Members</SelectItem>
+                <SelectItem value="all">All Team Members</SelectItem>
                 {teamMembers.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.first_name} {member.last_name}
@@ -271,17 +280,17 @@ const Tasks = () => {
           </div>
         </div>
 
-        {/* Task Stats */}
+        {/* Enhanced Stats for Social Media Agency */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Tasks</p>
+                  <p className="text-sm text-gray-600">Active Campaigns</p>
                   <p className="text-2xl font-bold text-gray-900">{filteredTasks.length}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
+                  <Target className="w-5 h-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -290,11 +299,11 @@ const Tasks = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">In Progress</p>
+                  <p className="text-sm text-gray-600">In Production</p>
                   <p className="text-2xl font-bold text-orange-600">{getTasksByStatus('in-progress').length}</p>
                 </div>
                 <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <CalendarIcon className="w-5 h-5 text-orange-600" />
+                  <Zap className="w-5 h-5 text-orange-600" />
                 </div>
               </div>
             </CardContent>
@@ -303,11 +312,11 @@ const Tasks = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Completed</p>
+                  <p className="text-sm text-gray-600">Published</p>
                   <p className="text-2xl font-bold text-green-600">{getTasksByStatus('completed').length}</p>
                 </div>
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <User className="w-5 h-5 text-green-600" />
+                  <BarChart3 className="w-5 h-5 text-green-600" />
                 </div>
               </div>
             </CardContent>

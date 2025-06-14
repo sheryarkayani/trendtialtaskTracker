@@ -9,7 +9,9 @@ import StatsCard from '@/components/StatsCard';
 import TaskBoard from '@/components/TaskBoard';
 import RecentActivity from '@/components/RecentActivity';  
 import TeamOverview from '@/components/TeamOverview';
-import { CheckSquare, Clock, Users, BarChart3 } from 'lucide-react';
+import SocialMediaMetrics from '@/components/SocialMediaMetrics';
+import CampaignOverview from '@/components/CampaignOverview';
+import { CheckSquare, Clock, Users, BarChart3, Target, TrendingUp, Calendar, Zap } from 'lucide-react';
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
@@ -48,51 +50,71 @@ const Index = () => {
         <Header />
         
         <main className="flex-1 overflow-y-auto">
-          {/* Dynamic Stats Cards using real analytics data */}
+          {/* Agency-focused Welcome Section */}
+          <div className="p-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white">
+            <div className="max-w-7xl mx-auto">
+              <h1 className="text-3xl font-bold mb-2">Social Media Command Center</h1>
+              <p className="text-blue-100">Manage campaigns, track performance, and coordinate your social media marketing efforts</p>
+            </div>
+          </div>
+
+          {/* Enhanced Stats Cards for Social Media Agency */}
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard
-              title="Total Tasks"
+              title="Active Campaigns"
               value={tasksLoading ? '...' : analytics.totalTasks.toString()}
-              change={`${analytics.inProgressTasks} in progress, ${analytics.overdueTasks} overdue`}
+              change={`${analytics.inProgressTasks} in progress`}
               changeType={analytics.overdueTasks > 0 ? "negative" : "positive"}
-              icon={CheckSquare}
+              icon={Target}
               iconColor="bg-gradient-to-br from-blue-500 to-blue-600"
             />
             <StatsCard
-              title="Completion Rate"
+              title="Content Completion"
               value={tasksLoading ? '...' : `${analytics.completionRate}%`}
-              change={`${analytics.completedTasks} completed tasks`}
+              change={`${analytics.completedTasks} posts delivered`}
               changeType={analytics.completionRate > 60 ? "positive" : "neutral"}
-              icon={Clock}
-              iconColor="bg-gradient-to-br from-yellow-500 to-orange-500"
-            />
-            <StatsCard
-              title="Team Members"
-              value={teamLoading ? '...' : totalTeamMembers.toString()}
-              change="Including you"
-              changeType="positive"
-              icon={Users}
+              icon={CheckSquare}
               iconColor="bg-gradient-to-br from-green-500 to-green-600"
             />
             <StatsCard
-              title="Avg. Completion"
-              value={tasksLoading ? '...' : `${analytics.averageCompletionTime}d`}
-              change="Days to complete"
-              changeType={analytics.averageCompletionTime < 3 ? "positive" : "neutral"}
-              icon={BarChart3}
+              title="Team Performance"
+              value={teamLoading ? '...' : totalTeamMembers.toString()}
+              change="Creative professionals"
+              changeType="positive"
+              icon={Users}
               iconColor="bg-gradient-to-br from-purple-500 to-purple-600"
+            />
+            <StatsCard
+              title="Avg. Turnaround"
+              value={tasksLoading ? '...' : `${analytics.averageCompletionTime}d`}
+              change="Days per campaign"
+              changeType={analytics.averageCompletionTime < 3 ? "positive" : "neutral"}
+              icon={Clock}
+              iconColor="bg-gradient-to-br from-orange-500 to-orange-600"
             />
           </div>
 
-          {/* Main Content Grid - Now fully dynamic and interconnected */}
+          {/* Social Media Specific Metrics */}
+          <div className="px-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <SocialMediaMetrics />
+              </div>
+              <div>
+                <CampaignOverview />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content Grid - Agency focused */}
           <div className="px-6 pb-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Task Board - Takes up 2 columns, now connected to global state */}
+              {/* Task Board - Enhanced for Social Media */}
               <div className="lg:col-span-2">
                 <TaskBoard />
               </div>
               
-              {/* Right Sidebar with interconnected real-time data */}
+              {/* Right Sidebar with agency-specific data */}
               <div className="space-y-6">
                 <RecentActivity />
                 <TeamOverview />
