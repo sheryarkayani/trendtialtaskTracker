@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
+import { useClientsRealtime } from './useClientsRealtime';
 import { Client } from '@/types/client';
 import { 
   fetchClients as apiFetchClients,
@@ -11,6 +12,7 @@ import {
 
 export const useClients = () => {
   const { user } = useAuth();
+  const { subscribeToClientsRealtime, unsubscribeFromClientsRealtime } = useClientsRealtime();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +39,20 @@ export const useClients = () => {
 
     console.log('Setting up clients hook for user:', user.id);
     fetchClients();
+    subscribeToClientsRealtime(user.id);
+
+    const handleClientsUpdate = () => {
+      console.log('Clients updated via realtime, refetching...');
+      fetchClients();
+    };
+
+    window.addEventListener('clients-updated', handleClientsUpdate);
+
+    return () => {
+      console.log('Cleanup: removing clients hook subscriber');
+      unsubscribeFromClientsRealtime();
+      window.removeEventListener('clients-updated', handleClientsUpdate);
+    };
   }, [user?.id]);
 
   const createClient = async (clientData: {
