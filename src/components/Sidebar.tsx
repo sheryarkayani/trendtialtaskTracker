@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Home, 
@@ -12,15 +11,19 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ isCollapsed = false }: { isCollapsed?: boolean }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const menuItems = [
-    { icon: Home, label: 'Dashboard', active: true },
-    { icon: CheckSquare, label: 'Tasks' },
-    { icon: Calendar, label: 'Calendar' },
-    { icon: Users, label: 'Team' },
-    { icon: BarChart3, label: 'Analytics' },
-    { icon: Settings, label: 'Settings' },
+    { icon: Home, label: 'Dashboard', path: '/', active: location.pathname === '/' },
+    { icon: CheckSquare, label: 'Tasks', path: '/tasks', active: location.pathname === '/tasks' },
+    { icon: Calendar, label: 'Calendar', path: '/calendar', active: location.pathname === '/calendar' },
+    { icon: Users, label: 'Team', path: '/team', active: location.pathname === '/team' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', active: location.pathname === '/analytics' },
+    { icon: Settings, label: 'Settings', path: '/settings', active: location.pathname === '/settings' },
   ];
 
   const platforms = [
@@ -74,11 +77,11 @@ const Sidebar = ({ isCollapsed = false }: { isCollapsed?: boolean }) => {
       <div className="flex-1 overflow-y-auto">
         <nav className="p-4 space-y-2">
           {menuItems.map((item, index) => (
-            <a
+            <button
               key={index}
-              href="#"
+              onClick={() => navigate(item.path)}
               className={cn(
-                "flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200",
+                "w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200",
                 item.active 
                   ? "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-600 border border-blue-200" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -86,7 +89,7 @@ const Sidebar = ({ isCollapsed = false }: { isCollapsed?: boolean }) => {
             >
               <item.icon className={cn("w-5 h-5", item.active && "text-blue-600")} />
               {!isCollapsed && <span className="font-medium">{item.label}</span>}
-            </a>
+            </button>
           ))}
         </nav>
 
