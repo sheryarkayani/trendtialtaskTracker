@@ -23,7 +23,8 @@ import {
   Save,
   X,
   Plus,
-  User
+  User,
+  Target
 } from 'lucide-react';
 
 interface ClientDetailModalProps {

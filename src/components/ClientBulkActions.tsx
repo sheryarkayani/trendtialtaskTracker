@@ -8,22 +8,20 @@ import { Users, Archive, Trash, Mail, UserCheck, MoreHorizontal, Download, X } f
 
 interface ClientBulkActionsProps {
   selectedCount: number;
-  onClearSelection: () => void;
-  onBulkAction: (action: string, value?: string) => void;
-  isLoading?: boolean;
+  onAction: (action: string, data?: any) => Promise<void>;
+  onCancel: () => void;
 }
 
 const ClientBulkActions = ({ 
   selectedCount, 
-  onClearSelection, 
-  onBulkAction,
-  isLoading = false 
+  onAction,
+  onCancel 
 }: ClientBulkActionsProps) => {
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-      <div className="bg-white rounded-lg shadow-lg border p-4 flex items-center gap-4 min-w-96">
+    <div className="bg-white rounded-lg shadow-lg border p-4 mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant="default" className="bg-blue-600">
             {selectedCount} selected
@@ -31,7 +29,7 @@ const ClientBulkActions = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onClearSelection}
+            onClick={onCancel}
             className="h-6 w-6 p-0"
           >
             <X className="w-4 h-4" />
@@ -40,7 +38,7 @@ const ClientBulkActions = ({
 
         <div className="flex items-center gap-2">
           {/* Status Change */}
-          <Select onValueChange={(value) => onBulkAction('changeStatus', value)} disabled={isLoading}>
+          <Select onValueChange={(value) => onAction('status', { status: value })}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Change Status" />
             </SelectTrigger>
@@ -52,7 +50,7 @@ const ClientBulkActions = ({
           </Select>
 
           {/* Assign Account Manager */}
-          <Select onValueChange={(value) => onBulkAction('assignManager', value)} disabled={isLoading}>
+          <Select onValueChange={(value) => onAction('manager', { managerId: value })}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Assign Manager" />
             </SelectTrigger>
@@ -63,43 +61,16 @@ const ClientBulkActions = ({
             </SelectContent>
           </Select>
 
-          {/* Quick Actions */}
+          {/* Delete Action */}
           <Button
-            variant="outline"
+            variant="destructive"
             size="sm"
-            onClick={() => onBulkAction('sendEmail')}
-            disabled={isLoading}
+            onClick={() => onAction('delete')}
             className="flex items-center gap-1"
           >
-            <Mail className="w-4 h-4" />
-            Email
+            <Trash className="w-4 h-4" />
+            Delete
           </Button>
-
-          {/* More Actions Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={isLoading}>
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onBulkAction('export')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export Data
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onBulkAction('archive')}>
-                <Archive className="w-4 h-4 mr-2" />
-                Archive Clients
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => onBulkAction('delete')}
-                className="text-red-600"
-              >
-                <Trash className="w-4 h-4 mr-2" />
-                Delete Clients
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </div>

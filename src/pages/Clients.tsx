@@ -9,7 +9,6 @@ import EnhancedClientCard from '@/components/EnhancedClientCard';
 import ClientDetailModal from '@/components/ClientDetailModal';
 import CreateClientDialog from '@/components/CreateClientDialog';
 import EditClientDialog from '@/components/EditClientDialog';
-import EnhancedClientFilters from '@/components/EnhancedClientFilters';
 import ClientBulkActions from '@/components/ClientBulkActions';
 import { useClients } from '@/hooks/useClients';
 import { Client } from '@/types/client';
@@ -317,15 +316,33 @@ const Clients = () => {
             </Card>
           </div>
 
-          {/* Filters */}
-          <EnhancedClientFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            clients={clients}
-            selectedCount={selectedClientIds.size}
-            totalFilteredCount={filteredClients.length}
-            onSelectAll={handleSelectAll}
-          />
+          {/* Search and Filters */}
+          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search clients..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {filteredClients.length} of {clients.length} clients
+                </span>
+                {selectedClientIds.size > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                  >
+                    {selectedClientIds.size === filteredClients.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Bulk Actions */}
           {showBulkActions && (
@@ -392,7 +409,7 @@ const Clients = () => {
       <CreateClientDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onSubmit={handleClientCreate}
+        onCreate={handleClientCreate}
       />
 
       {editingClient && (
@@ -400,7 +417,7 @@ const Clients = () => {
           open={!!editingClient}
           onOpenChange={(open) => !open && setEditingClient(null)}
           client={editingClient}
-          onSubmit={async (updates) => {
+          onUpdate={async (updates) => {
             await handleClientUpdate(editingClient.id, updates);
             setEditingClient(null);
           }}
