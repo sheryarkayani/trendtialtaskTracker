@@ -22,10 +22,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Handle user signup - link existing profile if it exists
+        if (event === 'SIGNED_UP' && session?.user) {
+          setTimeout(async () => {
+            try {
+              // Check if a profile already exists for this email
+              const { data: existingProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('email', session.user.email)
+                .single();
+
+              if (existingProfile) {
+                // Update the existing profile with the auth user ID
+                await supabase
+                  .from('profiles')
+                  .update({ id: session.user.id })
+                  .eq('email', session.user.email);
+                
+                console.log('Linked existing profile to auth user');
+              }
+            } catch (error) {
+              console.error('Error linking profile:', error);
+            }
+          }, 100);
+        }
       }
     );
 
