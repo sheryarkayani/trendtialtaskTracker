@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -23,41 +22,6 @@ export const useActivity = () => {
   const channelRef = useRef<any>(null);
   const isSubscribedRef = useRef(false);
 
-  useEffect(() => {
-    if (user && !isSubscribedRef.current) {
-      fetchActivities();
-      
-      // Clean up any existing channel
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-        isSubscribedRef.current = false;
-      }
-      
-      // Set up realtime subscription with unique channel name
-      const channelName = `activity-changes-${user.id}-${Date.now()}`;
-      channelRef.current = supabase
-        .channel(channelName)
-        .on('postgres_changes', 
-          { event: 'INSERT', schema: 'public', table: 'activity_logs' },
-          () => { fetchActivities(); }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            isSubscribedRef.current = true;
-          }
-        });
-
-      return () => {
-        if (channelRef.current) {
-          supabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-          isSubscribedRef.current = false;
-        }
-      };
-    }
-  }, [user]);
-
   const fetchActivities = async () => {
     try {
       const { data, error } = await supabase
@@ -77,6 +41,49 @@ export const useActivity = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchActivities();
+      
+      // Only set up realtime if not already subscribed
+      if (!isSubscribedRef.current) {
+        // Clean up any existing channel first
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+        
+        // Set up realtime subscription with unique channel name
+        const channelName = `activity-changes-${user.id}-${Date.now()}-${Math.random()}`;
+        channelRef.current = supabase
+          .channel(channelName)
+          .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'activity_logs' },
+            () => { 
+              console.log('Activity updated via realtime');
+              fetchActivities(); 
+            }
+          )
+          .subscribe((status) => {
+            console.log('Activity channel status:', status);
+            if (status === 'SUBSCRIBED') {
+              isSubscribedRef.current = true;
+            } else if (status === 'CLOSED') {
+              isSubscribedRef.current = false;
+            }
+          });
+      }
+    }
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        isSubscribedRef.current = false;
+      }
+    };
+  }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
 
   return { activities, loading, refetch: fetchActivities };
 };

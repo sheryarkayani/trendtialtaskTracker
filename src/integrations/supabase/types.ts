@@ -344,6 +344,14 @@ export type Database = {
         Args: { user_id: string }
         Returns: undefined
       }
+      get_current_user_organization_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       platform_type:

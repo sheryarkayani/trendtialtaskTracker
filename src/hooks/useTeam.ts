@@ -19,12 +19,6 @@ export const useTeam = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchTeamMembers();
-    }
-  }, [user]);
-
   const fetchTeamMembers = async () => {
     try {
       const { data, error } = await supabase
@@ -69,6 +63,12 @@ export const useTeam = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchTeamMembers();
+    }
+  }, [user?.id]); // Only depend on user ID to avoid unnecessary re-runs
 
   return { teamMembers, loading, refetch: fetchTeamMembers };
 };
