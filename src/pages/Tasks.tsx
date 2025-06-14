@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Filter, Calendar as CalendarIcon, User, BarChart3 } from 'lucide-react';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeam } from '@/hooks/useTeam';
-import { TaskCard } from '@/components/TaskCard';
-import { CreateTaskDialog } from '@/components/CreateTaskDialog';
+import TaskCard from '@/components/TaskCard';
+import CreateTaskDialog from '@/components/CreateTaskDialog';
 import { cn } from '@/lib/utils';
 
 const Tasks = () => {

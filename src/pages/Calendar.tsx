@@ -372,7 +372,7 @@ const Calendar = () => {
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <Badge size="sm" className={getStatusColor(task.status)}>
+                            <Badge className={getStatusColor(task.status)}>
                               {task.status}
                             </Badge>
                             {assignee && (
