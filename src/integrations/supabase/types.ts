@@ -98,6 +98,105 @@ export type Database = {
           },
         ]
       }
+      client_communications: {
+        Row: {
+          client_id: string | null
+          content: string
+          created_at: string
+          follow_up_date: string | null
+          id: string
+          priority: string | null
+          subject: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          content: string
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          priority?: string | null
+          subject?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          content?: string
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          priority?: string | null
+          subject?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_communications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_communications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_files: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_files_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_team_assignments: {
         Row: {
           client_id: string | null
@@ -139,45 +238,88 @@ export type Database = {
       }
       clients: {
         Row: {
+          account_manager_id: string | null
+          address: string | null
           brand_color: string | null
+          client_size: string | null
           company: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string
           description: string | null
           email: string | null
+          health_status: string | null
           id: string
+          industry: string | null
+          last_contact_date: string | null
           logo_url: string | null
+          monthly_retainer: number | null
           name: string
           organization_id: string | null
+          phone: string | null
+          preferred_communication: string | null
           status: string | null
+          time_zone: string | null
           updated_at: string
         }
         Insert: {
+          account_manager_id?: string | null
+          address?: string | null
           brand_color?: string | null
+          client_size?: string | null
           company?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
+          health_status?: string | null
           id?: string
+          industry?: string | null
+          last_contact_date?: string | null
           logo_url?: string | null
+          monthly_retainer?: number | null
           name: string
           organization_id?: string | null
+          phone?: string | null
+          preferred_communication?: string | null
           status?: string | null
+          time_zone?: string | null
           updated_at?: string
         }
         Update: {
+          account_manager_id?: string | null
+          address?: string | null
           brand_color?: string | null
+          client_size?: string | null
           company?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
+          health_status?: string | null
           id?: string
+          industry?: string | null
+          last_contact_date?: string | null
           logo_url?: string | null
+          monthly_retainer?: number | null
           name?: string
           organization_id?: string | null
+          phone?: string | null
+          preferred_communication?: string | null
           status?: string | null
+          time_zone?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "clients_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clients_organization_id_fkey"
             columns: ["organization_id"]
