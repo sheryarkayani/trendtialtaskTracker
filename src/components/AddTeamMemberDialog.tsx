@@ -35,44 +35,112 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
     setLoading(true);
 
     try {
-      console.log('Starting team member creation process...');
+      console.log('=== STARTING TEAM MEMBER CREATION ===');
       
       if (!user) {
         throw new Error('No authenticated user found');
       }
 
-      // Get current user's organization first
-      const { data: currentUserProfile } = await supabase
+      // Get current user's organization with detailed logging
+      const { data: currentUserProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('organization_id')
+        .select('*')
         .eq('id', user.id)
         .single();
 
-      const organizationId = currentUserProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
-      console.log('Using organization ID:', organizationId);
+      console.log('Current user profile for org lookup:', currentUserProfile);
+      console.log('Profile error:', profileError);
+
+      if (profileError) {
+        console.error('Error fetching current user profile:', profileError);
+      }
+
+      // Determine organization ID
+      let organizationId = currentUserProfile?.organization_id;
+      
+      // If current user doesn't have organization_id, assign default and update
+      if (!organizationId) {
+        organizationId = '00000000-0000-0000-0000-000000000001';
+        console.log('Current user missing organization_id, using default:', organizationId);
+        
+        // Update current user's profile with organization_id
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ organization_id: organizationId })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('Error updating current user organization_id:', updateError);
+        } else {
+          console.log('Updated current user organization_id');
+        }
+      }
+
+      console.log('Final organization ID to use:', organizationId);
       
       // Check if a profile already exists for this email
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('id, email')
+        .select('id, email, organization_id')
         .eq('email', formData.email)
         .maybeSingle();
+
+      console.log('Existing profile check:', existingProfile);
+      console.log('Check error:', checkError);
 
       if (checkError && checkError.code !== 'PGRST116') {
         throw checkError;
       }
 
       if (existingProfile) {
-        toast({
-          title: "User already exists",
-          description: `A team member with email ${formData.email} already exists in the system.`,
-          variant: "destructive",
+        // If user exists but has no organization_id, update it
+        if (!existingProfile.organization_id) {
+          console.log('Updating existing user organization_id...');
+          const { error: updateExistingError } = await supabase
+            .from('profiles')
+            .update({ 
+              organization_id: organizationId,
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              role: formData.role,
+              bio: formData.bio || null,
+              skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null
+            })
+            .eq('id', existingProfile.id);
+          
+          if (updateExistingError) {
+            console.error('Error updating existing user:', updateExistingError);
+            throw updateExistingError;
+          }
+          
+          toast({
+            title: "Team member updated successfully!",
+            description: `${formData.firstName} has been updated and assigned to your organization.`,
+          });
+        } else {
+          toast({
+            title: "User already exists",
+            description: `A team member with email ${formData.email} already exists in the system.`,
+            variant: "destructive",
+          });
+        }
+        
+        // Reset form and call success
+        setFormData({
+          email: '',
+          password: '',
+          firstName: '',
+          lastName: '',
+          role: 'team_member',
+          bio: '',
+          skills: ''
         });
+        onSuccess();
         return;
       }
 
       // Create the user account with Supabase Auth
-      console.log('Creating user account...');
+      console.log('Creating new user account...');
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -89,6 +157,9 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
         }
       });
 
+      console.log('Auth signup result:', authData);
+      console.log('Auth signup error:', signUpError);
+
       if (signUpError) {
         console.error('Auth signup error:', signUpError);
         throw signUpError;
@@ -96,9 +167,19 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
 
       console.log('User created successfully:', authData.user?.id);
 
-      // Create profile immediately after user creation
+      // Create profile immediately after user creation with explicit organization_id
       if (authData.user) {
         console.log('Creating profile for user:', authData.user.id);
+        console.log('Profile data to insert:', {
+          id: authData.user.id,
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role: formData.role,
+          bio: formData.bio || null,
+          skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
+          organization_id: organizationId
+        });
         
         const { error: profileError } = await supabase
           .from('profiles')
@@ -142,7 +223,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
           console.log('Profile created successfully');
         }
 
-        // Wait a moment then verify the profile was created
+        // Verify the profile was created with correct organization_id
         setTimeout(async () => {
           const { data: verifyProfile } = await supabase
             .from('profiles')
@@ -150,7 +231,7 @@ const AddTeamMemberDialog = ({ open, onOpenChange, onSuccess }: AddTeamMemberDia
             .eq('id', authData.user.id)
             .single();
           
-          console.log('Profile verification:', verifyProfile);
+          console.log('Profile verification after creation:', verifyProfile);
         }, 1000);
       }
 

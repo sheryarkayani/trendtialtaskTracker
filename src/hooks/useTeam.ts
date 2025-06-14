@@ -27,22 +27,74 @@ export const useTeam = () => {
     if (!user) return;
     
     try {
+      console.log('=== DEBUGGING TEAM FETCH ===');
       console.log('Fetching team members for user:', user.id);
       
-      // First get current user's organization
-      const { data: currentUserProfile } = await supabase
+      // First get current user's profile with more details
+      const { data: currentUserProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('organization_id')
+        .select('*')
         .eq('id', user.id)
         .single();
 
-      console.log('Current user profile:', currentUserProfile);
+      console.log('Current user full profile:', currentUserProfile);
+      console.log('Profile fetch error:', profileError);
 
-      const organizationId = currentUserProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
+      if (!currentUserProfile) {
+        console.error('No profile found for current user');
+        setLoading(false);
+        return;
+      }
+
+      const organizationId = currentUserProfile.organization_id;
+      console.log('Current user organization_id:', organizationId);
       
-      // Update any profiles that don't have an organization_id assigned to match the admin's organization
-      if (currentUserProfile?.organization_id) {
-        console.log('Fixing profiles without organization_id...');
+      // Fetch ALL profiles first to see what's in the database
+      const { data: allProfiles, error: allError } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      console.log('=== ALL PROFILES IN DATABASE ===');
+      console.log('All profiles:', allProfiles);
+      console.log('All profiles error:', allError);
+
+      // If current user doesn't have organization_id, update it
+      if (!organizationId) {
+        console.log('Current user missing organization_id, updating...');
+        const defaultOrgId = '00000000-0000-0000-0000-000000000001';
+        
+        const { error: updateCurrentUserError } = await supabase
+          .from('profiles')
+          .update({ organization_id: defaultOrgId })
+          .eq('id', user.id);
+        
+        if (updateCurrentUserError) {
+          console.error('Error updating current user organization_id:', updateCurrentUserError);
+        } else {
+          console.log('Updated current user organization_id to:', defaultOrgId);
+          // Update all other profiles without organization_id
+          const { error: updateOthersError } = await supabase
+            .from('profiles')
+            .update({ organization_id: defaultOrgId })
+            .is('organization_id', null);
+          
+          if (updateOthersError) {
+            console.error('Error updating other profiles organization_id:', updateOthersError);
+          } else {
+            console.log('Updated other profiles organization_id');
+          }
+        }
+        
+        // Re-fetch all profiles after update
+        const { data: updatedProfiles } = await supabase
+          .from('profiles')
+          .select('*');
+        console.log('Updated profiles:', updatedProfiles);
+      }
+      
+      // Update any profiles that don't have an organization_id to match current user's org
+      if (organizationId) {
+        console.log('Updating profiles without organization_id to match current user...');
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ organization_id: organizationId })
@@ -54,32 +106,32 @@ export const useTeam = () => {
           console.log('Successfully updated profiles without organization_id');
         }
       }
+
+      // Final organization ID to use
+      const finalOrgId = organizationId || '00000000-0000-0000-0000-000000000001';
+      console.log('Using final organization ID for query:', finalOrgId);
       
-      // Fetch all profiles in the same organization, excluding current user
-      const { data, error } = await supabase
+      // Fetch team members (excluding current user)
+      const { data: teamData, error: teamError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', finalOrgId)
         .neq('id', user.id);
 
-      if (error) {
-        console.error('Error fetching team members:', error);
-        throw error;
+      console.log('=== TEAM QUERY RESULTS ===');
+      console.log('Team members query result:', teamData);
+      console.log('Team query error:', teamError);
+      console.log('Query used organization_id:', finalOrgId);
+      console.log('Excluded user_id:', user.id);
+
+      if (teamError) {
+        console.error('Error fetching team members:', teamError);
+        throw teamError;
       }
-
-      console.log('Raw team members data:', data);
-      console.log('Organization ID used for query:', organizationId);
-
-      // Also fetch all profiles to debug
-      const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      console.log('All profiles in database:', allProfiles);
 
       // Get task counts for each team member
       const membersWithStats = await Promise.all(
-        (data || []).map(async (member) => {
+        (teamData || []).map(async (member) => {
           try {
             const { data: completedTasks } = await supabase
               .from('tasks')
@@ -96,6 +148,12 @@ export const useTeam = () => {
             const tasksCompleted = completedTasks?.length || 0;
             const tasksInProgress = inProgressTasks?.length || 0;
             const workload = Math.min(100, Math.max(0, (tasksInProgress * 15) + (Math.random() * 30)));
+
+            console.log(`Stats for member ${member.email}:`, {
+              tasksCompleted,
+              tasksInProgress,
+              workload: Math.round(workload)
+            });
 
             return {
               ...member,
@@ -115,7 +173,10 @@ export const useTeam = () => {
         })
       );
 
-      console.log('Team members with stats:', membersWithStats);
+      console.log('=== FINAL RESULT ===');
+      console.log('Final team members with stats:', membersWithStats);
+      console.log('Total team members found:', membersWithStats.length);
+      
       setTeamMembers(membersWithStats);
     } catch (error) {
       console.error('Error fetching team members:', error);
