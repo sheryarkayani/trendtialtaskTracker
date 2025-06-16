@@ -45,7 +45,7 @@ const Sidebar = () => {
   const navItems = getNavItems();
 
   return (
-    <div className="bg-card w-64 min-h-screen border-r">
+    <div className="hidden md:block bg-card w-64 min-h-screen border-r">
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">

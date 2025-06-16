@@ -33,6 +33,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,8 +96,21 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
     return filteredTasks.filter(task => task.status === columnId);
   };
 
+  const handleTaskDelete = async (taskId: string) => {
+    await deleteTask(taskId);
+    await handleTaskUpdate();
+    setIsDetailModalOpen(false);
+    setSelectedTask(null);
+  };
+
+  // Task Updates
   const handleTaskUpdate = async () => {
-    await refetch();
+    await onTaskUpdate();
+  };
+
+  const handleTaskDetailUpdate = async (taskId: string, updates: Partial<Task>) => {
+    await updateTask(taskId, updates);
+    await handleTaskUpdate();
   };
 
   const handleTaskCreated = () => {
@@ -111,6 +125,15 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
     setPlatformFilter('all');
     setAssigneeFilter('all');
     setClientFilter('all');
+  };
+
+  const handleFiltersChange = (filters: any) => {
+    setSearchTerm(filters.search || '');
+    setStatusFilter(filters.status || 'all');
+    setPriorityFilter(filters.priority || 'all');
+    setPlatformFilter(filters.platform || 'all');
+    setAssigneeFilter(filters.assignee || 'all');
+    setClientFilter(filters.client || 'all');
   };
 
   // Drag and Drop
@@ -147,7 +170,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   };
 
   // Task Selection
-  const handleTaskSelect = (taskId: string, selected: boolean) => {
+  const handleTaskSelect = (selected: boolean, taskId?: string) => {
+    if (!taskId) return;
     setSelectedTasks(prev => 
       selected 
         ? [...prev, taskId]
@@ -259,8 +283,109 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   }
 
   return (
-    <div className="space-y-6">
-      {/* Enhanced Filters */}
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Bulk Actions */}
+      {selectedTasks.length > 0 && (
+        <BulkTaskActions
+          selectedTasks={selectedTasks}
+          onClearSelection={() => setSelectedTasks([])}
+          onBulkAssign={handleBulkAssign}
+          onBulkStatusChange={handleBulkStatusChange}
+          onBulkPriorityChange={handleBulkPriorityChange}
+          onBulkDelete={handleBulkDelete}
+          teamMembers={teamMembers}
+          isVisible={true}
+        />
+      )}
+
+      {/* Header Controls */}
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6 px-4 md:px-6">
+        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            className="w-full md:w-auto"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Campaign
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(true)}
+            className="w-full md:w-auto"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filters
+          </Button>
+        </div>
+      </div>
+
+      {/* Task Board */}
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex h-full gap-4 px-4 pb-4 min-w-[1000px]">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            {columns.map(column => (
+              <div
+                key={column.id}
+                className={cn(
+                  "flex-1 min-w-[300px] rounded-lg overflow-hidden",
+                  column.color,
+                  !column.collapsed && "border",
+                  column.borderColor
+                )}
+              >
+                {/* Column Header */}
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{column.title}</h3>
+                      <Badge variant="secondary">
+                        {getTasksForColumn(column.id).length}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {column.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tasks Container */}
+                <Droppable droppableId={column.id}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="px-4 pb-4 space-y-4 min-h-[200px]"
+                    >
+                      {getTasksForColumn(column.id).map((task) => (
+                        <EnhancedTaskCard
+                          key={task.id}
+                          task={task}
+                          isSelected={selectedTasks.includes(task.id)}
+                          onSelect={(selected) => handleTaskSelect(selected, task.id)}
+                          onOpenDetail={() => handleOpenTaskDetail(task)}
+                          isDragging={draggedTask === task.id}
+                          onUpdate={handleTaskUpdate}
+                          updateTaskStatus={updateTaskStatus}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            ))}
+          </DragDropContext>
+        </div>
+      </div>
+
+      {/* Modals and Dialogs */}
+      <CreateTaskDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={handleTaskUpdate}
+      />
+
       <EnhancedTaskFilters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -281,173 +406,17 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
         totalCount={tasks.length}
       />
 
-      {/* Enhanced Board */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        {/* Enhanced Board Header */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Campaign Pipeline</h2>
-              <p className="text-gray-500">Track your social media content from brief to publication</p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <Button 
-                onClick={() => setShowCreateDialog(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Task</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="flex items-center space-x-6 mt-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Active: {getTasksForColumn('in-progress').length}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">In Review: {getTasksForColumn('review').length}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Published: {getTasksForColumn('completed').length}</span>
-            </div>
-            {selectedTasks.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <CheckSquare className="w-3 h-3 text-blue-500" />
-                <span className="text-sm text-blue-600 font-medium">{selectedTasks.length} selected</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Kanban Board Columns */}
-        <div className="p-6">
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {columns.map((column) => {
-                const columnTasks = getTasksForColumn(column.id);
-                const selectedInColumn = columnTasks.filter(task => selectedTasks.includes(task.id)).length;
-                const allSelectedInColumn = columnTasks.length > 0 && selectedInColumn === columnTasks.length;
-                
-                return (
-                  <Droppable key={column.id} droppableId={column.id}>
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={cn(
-                          "rounded-xl p-4 min-h-[500px] transition-all duration-200",
-                          column.color,
-                          draggedTask && "border-2 border-dashed",
-                          draggedTask ? column.borderColor : "border-transparent"
-                        )}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, column.id)}
-                      >
-                        {/* Enhanced Column Header */}
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('-50', '-500').replace('-100', '-500')}`} />
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                              <p className="text-xs text-gray-500">{column.description}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="secondary" className="text-xs">
-                              {columnTasks.length}
-                            </Badge>
-                            {columnTasks.length > 0 && (
-                              <button
-                                onClick={() => handleSelectAll(column.id)}
-                                className={cn(
-                                  "w-4 h-4 border-2 rounded flex items-center justify-center",
-                                  allSelectedInColumn 
-                                    ? "bg-blue-500 border-blue-500" 
-                                    : selectedInColumn > 0
-                                    ? "bg-blue-200 border-blue-500"
-                                    : "border-gray-300 hover:border-blue-400"
-                                )}
-                              >
-                                {allSelectedInColumn && <CheckSquare className="w-3 h-3 text-white" />}
-                                {selectedInColumn > 0 && !allSelectedInColumn && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Tasks */}
-                        <div className="space-y-4">
-                          {columnTasks.map((task, index) => (
-                            <div
-                              key={task.id}
-                              onDragStart={() => handleDragStart(task.id)}
-                              onDragEnd={handleDragEnd}
-                            >
-                              <TaskCard
-                                task={task}
-                                index={index}
-                                teamMembers={teamMembers}
-                              />
-                            </div>
-                          ))}
-                          
-                          {/* Add Task Button */}
-                          <button 
-                            onClick={() => setShowCreateDialog(true)}
-                            className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center space-x-2"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span>Add {column.title}</span>
-                          </button>
-                        </div>
-
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                );
-              })}
-            </div>
-          </DragDropContext>
-        </div>
-      </div>
-
-      {/* Bulk Actions Bar */}
-      <BulkTaskActions
-        selectedTasks={selectedTasks}
-        onClearSelection={handleClearSelection}
-        onBulkAssign={handleBulkAssign}
-        onBulkStatusChange={handleBulkStatusChange}
-        onBulkPriorityChange={handleBulkPriorityChange}
-        onBulkDelete={handleBulkDelete}
-        teamMembers={teamMembers}
-        isVisible={selectedTasks.length > 0}
-      />
-
-      {/* Dialogs */}
-      <CreateTaskDialog 
-        open={showCreateDialog} 
-        onOpenChange={setShowCreateDialog}
-        onSuccess={handleTaskCreated}
-      />
-
-      <TaskDetailModal
-        task={selectedTask}
-        isOpen={isDetailModalOpen}
-        onClose={handleCloseTaskDetail}
-        onUpdate={updateTask}
-        onDelete={deleteTask}
-        teamMembers={teamMembers}
-        clients={clients}
-      />
+      {selectedTask && (
+        <TaskDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          task={selectedTask}
+          onUpdate={handleTaskDetailUpdate}
+          onDelete={handleTaskDelete}
+          teamMembers={teamMembers}
+          clients={clients}
+        />
+      )}
     </div>
   );
 };

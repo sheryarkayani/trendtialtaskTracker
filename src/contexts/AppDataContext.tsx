@@ -4,6 +4,7 @@ import { useTeam } from '@/hooks/useTeam';
 import { useActivity } from '@/hooks/useActivity';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface AppDataContextType {
   // Tasks data
@@ -63,20 +64,56 @@ export const AppDataProvider = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel('public:tasks')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
-        (payload) => {
-          console.log('Realtime change received!', payload);
-          refreshTasks();
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+    let activeChannel: RealtimeChannel | null = null;
+
+    const setupRealtimeSubscription = async () => {
+      try {
+        if (activeChannel) {
+          await supabase.removeChannel(activeChannel);
         }
-      )
-      .subscribe();
+
+        const channel = supabase
+          .channel('public:tasks')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'tasks' },
+            (payload) => {
+              console.log('Realtime change received!', payload);
+              refreshTasks();
+            }
+          );
+
+        activeChannel = channel;
+        await channel.subscribe((status: any) => {
+          console.log('Subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to channel');
+          } else if (retryCount < maxRetries) {
+            console.log(`Retrying connection... Attempt ${retryCount + 1}`);
+            retryCount++;
+            setTimeout(setupRealtimeSubscription, retryDelay);
+          }
+        });
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+        if (retryCount < maxRetries) {
+          console.log(`Retrying connection... Attempt ${retryCount + 1}`);
+          retryCount++;
+          setTimeout(setupRealtimeSubscription, retryDelay);
+        }
+      }
+    };
+
+    setupRealtimeSubscription();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (activeChannel) {
+        supabase.removeChannel(activeChannel);
+      }
     };
   }, [user, refreshTasks]);
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Clock, User, MessageCircle, Paperclip, MoreHorizontal, Building2, CheckSquare, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,6 +26,7 @@ const EnhancedTaskCard = ({
   onOpenDetail 
 }: EnhancedTaskCardProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isTouchActive, setIsTouchActive] = useState(false);
 
   const priorityColors = {
     high: 'border-l-red-500',
@@ -90,16 +90,22 @@ const EnhancedTaskCard = ({
   return (
     <div 
       className={cn(
-        "bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-lg transition-all duration-200 cursor-pointer group relative",
-        "border-l-4",
+        "relative p-4 bg-white rounded-lg border",
+        "group touch-manipulation",
+        "transition-all duration-200 ease-out",
+        "hover:shadow-lg active:shadow-md",
+        "transform-gpu",
+        isTouchActive && "scale-[0.98]",
         priorityColors[task.priority || 'medium'],
         isLoading && "opacity-50",
-        isDragging && "rotate-2 opacity-75 shadow-xl",
+        isDragging && "rotate-2 opacity-90 shadow-xl scale-[1.02]",
         isOverdue && "bg-red-50 border-red-100",
         isSelected && "ring-2 ring-blue-500 shadow-lg"
       )}
       draggable
       onClick={handleCardClick}
+      onTouchStart={() => setIsTouchActive(true)}
+      onTouchEnd={() => setIsTouchActive(false)}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', JSON.stringify({
           taskId: task.id,
@@ -108,13 +114,21 @@ const EnhancedTaskCard = ({
         e.dataTransfer.effectAllowed = 'move';
       }}
     >
-      {/* Selection Checkbox - appears on hover */}
+      {/* Selection Checkbox with improved animation */}
       <div 
-        className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        className={cn(
+          "absolute top-2 left-2 z-10",
+          "transition-all duration-200 ease-out",
+          "opacity-0 group-hover:opacity-100 md:transform",
+          "md:scale-95 group-hover:scale-100",
+          isSelected && "opacity-100 scale-100"
+        )}
         onClick={handleCheckboxClick}
       >
         <div className={cn(
-          "w-4 h-4 border-2 rounded flex items-center justify-center cursor-pointer",
+          "w-4 h-4 border-2 rounded",
+          "flex items-center justify-center cursor-pointer",
+          "transition-all duration-200",
           isSelected ? "bg-blue-500 border-blue-500" : "border-gray-300 hover:border-blue-400"
         )}>
           {isSelected && <CheckSquare className="w-3 h-3 text-white" />}
@@ -149,10 +163,14 @@ const EnhancedTaskCard = ({
         </Avatar>
       </div>
 
-      {/* Timer indicator */}
+      {/* Timer indicator with pulse animation */}
       {task.is_timer_running && (
         <div className="absolute top-2 right-8">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <div className={cn(
+            "w-2 h-2 bg-green-500 rounded-full",
+            "animate-[pulse_1.5s_ease-in-out_infinite]",
+            "shadow-[0_0_12px_rgba(34,197,94,0.6)]"
+          )}></div>
         </div>
       )}
 
@@ -177,17 +195,21 @@ const EnhancedTaskCard = ({
         )}
       </div>
 
-      {/* Progress Bar for Subtasks */}
+      {/* Progress bar with smooth transition */}
       {task.subtasks_total && task.subtasks_total > 0 && (
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
             <span>Progress</span>
             <span>{task.subtasks_completed || 0}/{task.subtasks_total}</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
+          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
             <div 
-              className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress * 100}%` }}
+              className={cn(
+                "h-1.5 rounded-full",
+                "transition-all duration-500 ease-out",
+                progress >= 1 ? "bg-green-500" : "bg-blue-500"
+              )}
+              style={{ width: `${progress * 100}%`, transform: `translateX(${isLoading ? '-100%' : '0'})` }}
             />
           </div>
         </div>

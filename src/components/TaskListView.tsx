@@ -24,14 +24,34 @@ const TaskListView: React.FC<TaskListViewProps> = ({ filteredTasks, teamMembers 
   };
 
   return (
-    <div className="space-y-4">
+    <div 
+      className={cn(
+        "space-y-4",
+        "transition-all duration-300 ease-out",
+      )}
+    >
       {filteredTasks.map((task) => {
         const assignee = teamMembers.find(member => member.id === task.assignee_id);
         const isOverdue = task.due_date && new Date(task.due_date) < new Date();
 
         return (
-          <Card key={task.id} className={cn('hover:shadow-lg transition-shadow border-l-4', getPriorityClasses(task.priority))}>
-            <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
+          <Card 
+            key={task.id} 
+            className={cn(
+              'hover:shadow-lg transition-all duration-200',
+              'border-l-4',
+              getPriorityClasses(task.priority),
+              'transform-gpu',
+              'hover:-translate-y-1',
+              'active:translate-y-0',
+              'touch-manipulation'
+            )}
+          >
+            <CardContent className={cn(
+              "p-4 grid grid-cols-12 gap-4 items-center",
+              "transition-colors duration-200",
+              "active:bg-gray-50"
+            )}>
               <div className="col-span-12 md:col-span-5">
                 <p className="font-semibold text-gray-800">{task.title}</p>
                 {task.description && <p className="text-sm text-gray-500 mt-1">{task.description}</p>}
