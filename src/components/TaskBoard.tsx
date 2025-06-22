@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/task';
-import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { supabase } from '@/integrations/supabase/client';
 import TaskCard from './TaskCard';
 import { TeamMember } from '@/hooks/useTeam';
@@ -29,7 +29,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   
   // UI State
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -136,39 +135,6 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
     setClientFilter(filters.client || 'all');
   };
 
-  // Drag and Drop
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetStatus: string) => {
-    e.preventDefault();
-    
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const { taskId, currentStatus } = data;
-      
-      if (currentStatus !== targetStatus) {
-        console.log('Dropping task:', taskId, 'to status:', targetStatus);
-        await updateTaskStatus(taskId, targetStatus as any);
-        await handleTaskUpdate();
-      }
-    } catch (error) {
-      console.error('Error dropping task:', error);
-    }
-    
-    setDraggedTask(null);
-  };
-
-  const handleDragStart = (taskId: string) => {
-    setDraggedTask(taskId);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedTask(null);
-  };
-
   // Task Selection
   const handleTaskSelect = (selected: boolean, taskId?: string) => {
     if (!taskId) return;
@@ -240,13 +206,16 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
     }
   };
 
+  // FIXED: Proper react-beautiful-dnd onDragEnd handler
   const onDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result;
 
+    // If dropped outside a valid droppable area
     if (!destination) {
       return;
     }
 
+    // If dropped in the same position
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -255,13 +224,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
     }
 
     const newStatus = destination.droppableId;
+    const taskId = draggableId;
 
     try {
-      await supabase
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', draggableId);
-      onTaskUpdate();
+      console.log('Moving task:', taskId, 'from', source.droppableId, 'to', newStatus);
+      
+      // Update task status in database
+      await updateTaskStatus(taskId, newStatus as Task['status']);
+      
+      // Refresh the task list
+      await handleTaskUpdate();
+      
+      console.log('Task moved successfully');
     } catch (error) {
       console.error('Error updating task status:', error);
     }
@@ -323,7 +297,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
       {/* Task Board */}
       <div className="flex-1 overflow-x-auto">
         <div className="flex h-full gap-4 px-4 pb-4 min-w-[1000px]">
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={onDragEnd}>
             {columns.map(column => (
               <div
                 key={column.id}
@@ -351,23 +325,43 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
 
                 {/* Tasks Container */}
                 <Droppable droppableId={column.id}>
-                  {(provided) => (
+                  {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className="px-4 pb-4 space-y-4 min-h-[200px]"
+                      className={cn(
+                        "px-4 pb-4 space-y-4 min-h-[200px] transition-colors",
+                        snapshot.isDraggingOver && "bg-blue-50/50"
+                      )}
                     >
-                      {getTasksForColumn(column.id).map((task) => (
-                        <EnhancedTaskCard
+                      {getTasksForColumn(column.id).map((task, index) => (
+                        <Draggable
                           key={task.id}
-                          task={task}
-                          isSelected={selectedTasks.includes(task.id)}
-                          onSelect={(selected) => handleTaskSelect(selected, task.id)}
-                          onOpenDetail={() => handleOpenTaskDetail(task)}
-                          isDragging={draggedTask === task.id}
-                          onUpdate={handleTaskUpdate}
-                          updateTaskStatus={updateTaskStatus}
-                        />
+                          draggableId={task.id}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={cn(
+                                "transition-transform",
+                                snapshot.isDragging && "rotate-2 shadow-lg"
+                              )}
+                            >
+                              <EnhancedTaskCard
+                                task={task}
+                                isSelected={selectedTasks.includes(task.id)}
+                                onSelect={(selected) => handleTaskSelect(selected, task.id)}
+                                onOpenDetail={() => handleOpenTaskDetail(task)}
+                                isDragging={snapshot.isDragging}
+                                onUpdate={handleTaskUpdate}
+                                updateTaskStatus={updateTaskStatus}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
                       ))}
                       {provided.placeholder}
                     </div>
