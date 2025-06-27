@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/task';
 
@@ -104,11 +103,23 @@ export const createTask = async (taskData: {
   subtasks_total?: number;
 }, userId: string) => {
   console.log('Creating new task:', taskData);
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', userId)
+    .single();
+
+  if (!profile) {
+    throw new Error('User profile not found, cannot determine organization.');
+  }
+
   const { error } = await supabase
     .from('tasks')
     .insert([{
       ...taskData,
-      organization_id: '00000000-0000-0000-0000-000000000001', // Default org
+      organization_id: profile.organization_id,
+      created_by: userId,
       status: 'todo' as const,
       subtasks_completed: 0,
       time_spent: 0,

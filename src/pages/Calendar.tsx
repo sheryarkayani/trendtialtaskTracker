@@ -16,7 +16,7 @@ const Calendar = () => {
   const [isScheduleTaskDialogOpen, setIsScheduleTaskDialogOpen] = useState(false);
 
   const visibleTasks = useMemo(() => {
-    if (user?.role === 'team_lead') {
+    if (user?.role === 'team_lead' || user?.role === 'superadmin') {
       return tasks;
     }
     return tasks.filter(task => task.assignee_id === user?.id);

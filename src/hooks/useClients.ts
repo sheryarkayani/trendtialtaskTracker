@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { useClientsRealtime } from './useClientsRealtime';
 import { Client } from '@/types/client';
@@ -15,7 +15,7 @@ export const useClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -34,30 +34,30 @@ export const useClients = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
 
-    console.log('Setting up clients hook for user:', user.id);
+    // console.log('Setting up clients hook for user:', user.id);
     fetchClients();
     subscribeToClientsRealtime(user.id);
 
     const handleClientsUpdate = () => {
-      console.log('Clients updated via realtime, refetching...');
+      // console.log('Clients updated via realtime, refetching...');
       fetchClients();
     };
 
     window.addEventListener('clients-updated', handleClientsUpdate);
 
     return () => {
-      console.log('Cleanup: removing clients hook subscriber');
+      // console.log('Cleanup: removing clients hook subscriber');
       unsubscribeFromClientsRealtime();
       window.removeEventListener('clients-updated', handleClientsUpdate);
     };
-  }, [user?.id, subscribeToClientsRealtime, unsubscribeFromClientsRealtime]);
+  }, [user, fetchClients, subscribeToClientsRealtime, unsubscribeFromClientsRealtime]);
 
-  const createClient = async (clientData: {
+  const createClient = useCallback(async (clientData: {
     name: string;
     email?: string;
     company?: string;
@@ -83,9 +83,9 @@ export const useClients = () => {
       console.error('Error creating client:', error);
       throw error;
     }
-  };
+  }, [user, fetchClients]);
 
-  const updateClient = async (clientId: string, updates: Partial<Client>) => {
+  const updateClient = useCallback(async (clientId: string, updates: Partial<Client>) => {
     if (!user) return;
     
     try {
@@ -95,9 +95,9 @@ export const useClients = () => {
       console.error('Error updating client:', error);
       throw error;
     }
-  };
+  }, [user, fetchClients]);
 
-  const deleteClient = async (clientId: string) => {
+  const deleteClient = useCallback(async (clientId: string) => {
     if (!user) return;
     
     try {
@@ -107,7 +107,7 @@ export const useClients = () => {
       console.error('Error deleting client:', error);
       throw error;
     }
-  };
+  }, [user, fetchClients]);
 
   return { 
     clients, 

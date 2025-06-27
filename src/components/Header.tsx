@@ -24,9 +24,10 @@ const Header = () => {
     ? `${profile.first_name} ${profile.last_name}`
     : profile?.email || 'User';
 
-  const displayRole = profile?.role === 'team_lead' ? 'Team Lead' : 
-                     profile?.role === 'team_member' ? 'Team Member' : 
-                     profile?.role === 'superadmin' ? 'Super Admin' : 'Client';
+  const displayRole = profile?.role === 'team_lead' ? 'Team Lead' :
+                   profile?.role === 'superadmin' ? 'Super Admin' :
+                   profile?.role === 'admin' ? 'Admin' :
+                   'Team Member';
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { useTasksRealtime } from './useTasksRealtime';
 import { Task } from '@/types/task';
@@ -15,7 +15,7 @@ export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -26,10 +26,10 @@ export const useTasks = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
 
     console.log('Setting up tasks hook for user:', user.id);
     fetchTasks();
@@ -43,13 +43,12 @@ export const useTasks = () => {
     window.addEventListener('tasks-updated', handleTasksUpdate);
 
     return () => {
-      console.log('Cleanup: removing tasks hook subscriber');
       unsubscribeFromRealtime();
       window.removeEventListener('tasks-updated', handleTasksUpdate);
     };
-  }, [user?.id, subscribeToRealtime, unsubscribeFromRealtime]);
+  }, [user, fetchTasks, subscribeToRealtime, unsubscribeFromRealtime]);
 
-  const createTask = async (taskData: {
+  const createTask = useCallback(async (taskData: {
     title: string;
     description?: string;
     priority?: Task['priority'];
@@ -68,9 +67,9 @@ export const useTasks = () => {
       console.error('Error creating task:', error);
       throw error;
     }
-  };
+  }, [user, fetchTasks]);
 
-  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+  const updateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
     if (!user) return;
     
     try {
@@ -80,9 +79,9 @@ export const useTasks = () => {
       console.error('Error updating task:', error);
       throw error;
     }
-  };
+  }, [user, fetchTasks]);
 
-  const updateTaskStatus = async (taskId: string, status: Task['status']) => {
+  const updateTaskStatus = useCallback(async (taskId: string, status: Task['status']) => {
     if (!user) return;
     
     try {
@@ -92,9 +91,9 @@ export const useTasks = () => {
       console.error('Error updating task status:', error);
       throw error;
     }
-  };
+  }, [user, fetchTasks]);
 
-  const deleteTask = async (taskId: string) => {
+  const deleteTask = useCallback(async (taskId: string) => {
     if (!user) return;
     
     try {
@@ -104,7 +103,7 @@ export const useTasks = () => {
       console.error('Error deleting task:', error);
       throw error;
     }
-  };
+  }, [user, fetchTasks]);
 
   return { 
     tasks, 

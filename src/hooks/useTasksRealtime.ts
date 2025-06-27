@@ -1,4 +1,4 @@
-
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 // Global singleton for realtime subscription
@@ -8,7 +8,7 @@ let globalUserId: string | null = null;
 let isSubscribing = false;
 
 export const useTasksRealtime = () => {
-  const setupGlobalRealtime = async (userId: string) => {
+  const setupGlobalRealtime = useCallback(async (userId: string) => {
     if (globalChannel || !userId || isSubscribing) return;
 
     console.log('Setting up global realtime subscription for user:', userId);
@@ -35,9 +35,9 @@ export const useTasksRealtime = () => {
       isSubscribing = false;
       globalChannel = null;
     }
-  };
+  }, []);
 
-  const cleanupGlobalRealtime = () => {
+  const cleanupGlobalRealtime = useCallback(() => {
     if (globalChannel && subscriberCount === 0) {
       console.log('Cleaning up global realtime subscription');
       supabase.removeChannel(globalChannel);
@@ -45,9 +45,9 @@ export const useTasksRealtime = () => {
       globalUserId = null;
       isSubscribing = false;
     }
-  };
+  }, []);
 
-  const subscribeToRealtime = (userId: string) => {
+  const subscribeToRealtime = useCallback((userId: string) => {
     subscriberCount++;
     
     // Set up global realtime if user changed or doesn't exist
@@ -62,13 +62,13 @@ export const useTasksRealtime = () => {
     } else if (!globalChannel && !isSubscribing) {
       setupGlobalRealtime(userId);
     }
-  };
+  }, [setupGlobalRealtime]);
 
-  const unsubscribeFromRealtime = () => {
+  const unsubscribeFromRealtime = useCallback(() => {
     subscriberCount = Math.max(0, subscriberCount - 1);
     // Clean up global channel if no more subscribers
     setTimeout(cleanupGlobalRealtime, 100);
-  };
+  }, [cleanupGlobalRealtime]);
 
   return {
     subscribeToRealtime,

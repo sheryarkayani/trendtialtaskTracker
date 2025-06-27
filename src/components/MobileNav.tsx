@@ -28,7 +28,7 @@ const MobileNav = () => {
       { to: '/tasks', icon: CheckSquare, label: 'Campaigns' },
     ];
 
-    if (profile?.role === 'team_lead') {
+    if (profile?.role === 'team_lead' || profile?.role === 'superadmin') {
       return [
         ...baseItems,
         { to: '/clients', icon: Building2, label: 'Clients' },

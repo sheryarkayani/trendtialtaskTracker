@@ -47,7 +47,7 @@ const Tasks = () => {
   const [mobileStatus, setMobileStatus] = useState('todo');
   const [showFilters, setShowFilters] = useState(false);
 
-  const isTeamLead = profile?.role === 'team_lead';
+  const isTeamLead = profile?.role === 'team_lead' || profile?.role === 'superadmin';
 
   // Filter tasks based on user role
   const userTasks = isTeamLead ? tasks : tasks.filter(task => task.assignee_id === user?.id);
