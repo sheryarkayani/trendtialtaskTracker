@@ -98,6 +98,75 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string | null
+          date: string
+          employee_id: string
+          id: string
+          ip_address: unknown | null
+          location: string | null
+          notes: string | null
+          organization_id: string
+          status: string | null
+          total_hours: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          date?: string
+          employee_id: string
+          id?: string
+          ip_address?: unknown | null
+          location?: string | null
+          notes?: string | null
+          organization_id: string
+          status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          date?: string
+          employee_id?: string
+          id?: string
+          ip_address?: unknown | null
+          location?: string | null
+          notes?: string | null
+          organization_id?: string
+          status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
@@ -497,6 +566,79 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          days_requested: number | null
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          organization_id: string
+          reason: string | null
+          rejection_reason: string | null
+          start_date: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested?: number | null
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          organization_id: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested?: number | null
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          organization_id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_reactions: {
         Row: {
           created_at: string | null
@@ -525,6 +667,76 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          data: Json | null
+          expires_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          organization_id: string
+          priority: string | null
+          read_at: string | null
+          recipient_id: string
+          sender_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          organization_id: string
+          priority?: string | null
+          read_at?: string | null
+          recipient_id: string
+          sender_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          organization_id?: string
+          priority?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -650,6 +862,146 @@ export type Database = {
           },
           {
             foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_records: {
+        Row: {
+          base_salary: number
+          bonus: number | null
+          created_at: string | null
+          created_by: string
+          deductions: number | null
+          employee_id: string
+          id: string
+          net_salary: number | null
+          notes: string | null
+          organization_id: string
+          pay_date: string
+          pay_period_end: string
+          pay_period_start: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          base_salary: number
+          bonus?: number | null
+          created_at?: string | null
+          created_by: string
+          deductions?: number | null
+          employee_id: string
+          id?: string
+          net_salary?: number | null
+          notes?: string | null
+          organization_id: string
+          pay_date: string
+          pay_period_end: string
+          pay_period_start: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_salary?: number
+          bonus?: number | null
+          created_at?: string | null
+          created_by?: string
+          deductions?: number | null
+          employee_id?: string
+          id?: string
+          net_salary?: number | null
+          notes?: string | null
+          organization_id?: string
+          pay_date?: string
+          pay_period_end?: string
+          pay_period_start?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_records_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_settings: {
+        Row: {
+          base_salary: number
+          created_at: string | null
+          created_by: string
+          currency: string | null
+          effective_date: string
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          organization_id: string
+          pay_frequency: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          base_salary: number
+          created_at?: string | null
+          created_by: string
+          currency?: string | null
+          effective_date: string
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          organization_id: string
+          pay_frequency?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_salary?: number
+          created_at?: string | null
+          created_by?: string
+          currency?: string | null
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string
+          pay_frequency?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_settings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -808,24 +1160,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_overdue_task_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_sample_data_for_user: {
-        Args: { user_id: string }
+        Args: Record<PropertyKey, never> | { user_id: string }
+        Returns: undefined
+      }
+      create_task_reminder_notifications: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       create_team_member: {
-        Args: {
-          p_email: string
-          p_first_name: string
-          p_last_name: string
-          p_role: Database["public"]["Enums"]["user_role"]
-          p_organization_id: string
-          p_bio: string
-          p_skills: string[]
-        }
+        Args:
+          | { member_email: string; member_role?: string }
+          | {
+              p_email: string
+              p_first_name: string
+              p_last_name: string
+              p_role: Database["public"]["Enums"]["user_role"]
+              p_organization_id: string
+              p_bio: string
+              p_skills: string[]
+            }
         Returns: string
       }
       get_conversations_for_user: {
-        Args: { user_id_param: string }
+        Args: Record<PropertyKey, never> | { user_id_param: string }
         Returns: {
           id: string
           name: string
@@ -843,8 +1205,24 @@ export type Database = {
         Returns: string
       }
       get_or_create_dm_room: {
-        Args: { user_id_1: string; user_id_2: string }
+        Args:
+          | { other_user_id: string }
+          | { user_id_1: string; user_id_2: string }
         Returns: Json
+      }
+      get_unread_notification_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      is_chat_participant: {
+        Args:
+          | { room_id_param: string }
+          | { room_id_param: string; user_id_param: string }
+        Returns: boolean
+      }
+      mark_notification_read: {
+        Args: { notification_id: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -856,7 +1234,7 @@ export type Database = {
         | "twitter"
       task_priority: "low" | "medium" | "high"
       task_status: "todo" | "in-progress" | "review" | "completed"
-      user_role: "team_lead" | "team_member" | "client"
+      user_role: "team_lead" | "team_member" | "client" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -975,7 +1353,7 @@ export const Constants = {
       platform_type: ["instagram", "facebook", "tiktok", "linkedin", "twitter"],
       task_priority: ["low", "medium", "high"],
       task_status: ["todo", "in-progress", "review", "completed"],
-      user_role: ["team_lead", "team_member", "client"],
+      user_role: ["team_lead", "team_member", "client", "superadmin"],
     },
   },
 } as const

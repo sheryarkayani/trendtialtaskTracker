@@ -1,9 +1,10 @@
 import React from 'react';
-import { Bell, Search, User, ChevronDown, LogOut } from 'lucide-react';
+import { Search, User, ChevronDown, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import MobileNav from './MobileNav';
+import { NotificationBell } from './NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +25,8 @@ const Header = () => {
     : profile?.email || 'User';
 
   const displayRole = profile?.role === 'team_lead' ? 'Team Lead' : 
-                     profile?.role === 'team_member' ? 'Team Member' : 'Client';
+                     profile?.role === 'team_member' ? 'Team Member' : 
+                     profile?.role === 'superadmin' ? 'Super Admin' : 'Client';
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
@@ -51,12 +53,7 @@ const Header = () => {
           </div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <NotificationBell />
 
           {/* User Profile Dropdown */}
           <DropdownMenu>

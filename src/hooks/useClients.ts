@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useClientsRealtime } from './useClientsRealtime';
@@ -38,7 +37,7 @@ export const useClients = () => {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     console.log('Setting up clients hook for user:', user.id);
     fetchClients();
@@ -56,7 +55,7 @@ export const useClients = () => {
       unsubscribeFromClientsRealtime();
       window.removeEventListener('clients-updated', handleClientsUpdate);
     };
-  }, [user?.id]);
+  }, [user?.id, subscribeToClientsRealtime, unsubscribeFromClientsRealtime]);
 
   const createClient = async (clientData: {
     name: string;

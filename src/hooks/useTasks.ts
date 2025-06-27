@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useTasksRealtime } from './useTasksRealtime';
@@ -30,7 +29,7 @@ export const useTasks = () => {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     console.log('Setting up tasks hook for user:', user.id);
     fetchTasks();
@@ -48,7 +47,7 @@ export const useTasks = () => {
       unsubscribeFromRealtime();
       window.removeEventListener('tasks-updated', handleTasksUpdate);
     };
-  }, [user?.id]);
+  }, [user?.id, subscribeToRealtime, unsubscribeFromRealtime]);
 
   const createTask = async (taskData: {
     title: string;

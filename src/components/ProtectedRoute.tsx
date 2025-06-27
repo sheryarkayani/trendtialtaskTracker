@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles: ('team_lead' | 'team_member' | 'client')[];
+  allowedRoles: ('team_lead' | 'team_member' | 'client' | 'superadmin')[];
   redirectTo?: string;
 }
 

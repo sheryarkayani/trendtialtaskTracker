@@ -12,6 +12,8 @@ import Settings from '@/pages/Settings';
 import Clients from '@/pages/Clients';
 import Auth from '@/pages/Auth';
 import NotFound from '@/pages/NotFound';
+import Financial from '@/pages/Financial';
+import Attendance from '@/pages/Attendance';
 import { useAuth } from '@/hooks/useAuth';
 import { AppDataProvider } from '@/contexts/AppDataContext';
 import Chat from '@/pages/Chat';
@@ -51,6 +53,15 @@ function App() {
                     </ProtectedRoute>
                   } 
                 />
+                <Route 
+                  path="/financial" 
+                  element={
+                    <ProtectedRoute allowedRoles={['superadmin', 'team_lead']}>
+                      <Financial />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route path="/attendance" element={<Attendance />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/settings" element={<Settings />} />

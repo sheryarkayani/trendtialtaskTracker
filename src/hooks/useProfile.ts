@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -8,7 +7,7 @@ export interface Profile {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  role: 'team_lead' | 'team_member' | 'client';
+  role: 'team_lead' | 'team_member' | 'client' | 'superadmin';
   organization_id: string | null;
   avatar_url: string | null;
   bio: string | null;
