@@ -12,7 +12,28 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Task } from '@/types/task';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import {
+  CSS,
+} from '@dnd-kit/utilities';
 import { supabase } from '@/integrations/supabase/client';
 import TaskCard from './TaskCard';
 import { TeamMember } from '@/hooks/useTeam';
@@ -34,6 +55,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +64,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   const [platformFilter, setPlatformFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('all');
+
+  // Configure sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Column Configuration with enhanced colors
   const columns = [
@@ -212,37 +246,40 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
   };
 
   // Enhanced drag and drop with smooth animations
-  const onDragStart = () => {
+  const onDragStart = (event: DragStartEvent) => {
     setIsDragging(true);
+    setActiveId(event.active.id as string);
     // Add subtle haptic feedback if available
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
   };
 
-  const onDragEnd = async (result: any) => {
+  const onDragEnd = async (event: DragEndEvent) => {
     setIsDragging(false);
+    setActiveId(null);
     
-    const { destination, source, draggableId } = result;
+    const { active, over } = event;
 
     // If dropped outside a valid droppable area
-    if (!destination) {
+    if (!over) {
       return;
     }
 
-    // If dropped in the same position
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
+    const taskId = active.id as string;
+    const newStatus = over.id as string;
+    
+    // Find the task to get its current status
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // If dropped in the same column
+    if (task.status === newStatus) {
       return;
     }
-
-    const newStatus = destination.droppableId;
-    const taskId = draggableId;
 
     try {
-      console.log('Moving task:', taskId, 'from', source.droppableId, 'to', newStatus);
+      console.log('Moving task:', taskId, 'from', task.status, 'to', newStatus);
       
       // Haptic feedback on successful drop
       if (navigator.vibrate) {
@@ -263,6 +300,149 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
         navigator.vibrate([100, 50, 100]);
       }
     }
+  };
+
+  // SortableTaskCard component for drag and drop
+  const SortableTaskCard: React.FC<{
+    task: Task;
+    teamMembers: TeamMember[];
+    onTaskSelect: (selected: boolean, taskId?: string) => void;
+    onOpenTaskDetail: (task: Task) => void;
+    selectedTasks: string[];
+  }> = ({ task, teamMembers, onTaskSelect, onOpenTaskDetail, selectedTasks }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: task.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={cn(
+          "transition-all duration-300 ease-out cursor-grab active:cursor-grabbing",
+          isDragging && [
+            "rotate-3 scale-105 z-50",
+            "shadow-2xl ring-2 ring-blue-400 ring-opacity-50",
+            "bg-white/95 backdrop-blur-sm"
+          ]
+        )}
+      >
+        <TaskCard
+          task={task}
+          teamMembers={teamMembers}
+          onTaskSelect={onTaskSelect}
+          onTaskClick={onOpenTaskDetail}
+          isSelected={selectedTasks.includes(task.id)}
+        />
+      </div>
+    );
+  };
+
+  // Droppable Column component
+  const DroppableColumn: React.FC<{
+    column: any;
+    tasks: Task[];
+    teamMembers: TeamMember[];
+    onTaskSelect: (selected: boolean, taskId?: string) => void;
+    onOpenTaskDetail: (task: Task) => void;
+    selectedTasks: string[];
+    isDragging: boolean;
+  }> = ({ column, tasks, teamMembers, onTaskSelect, onOpenTaskDetail, selectedTasks, isDragging }) => {
+    const {
+      setNodeRef,
+      isOver,
+    } = useDroppable({ id: column.id });
+
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex-1 min-w-[300px] rounded-2xl overflow-hidden border-2 transition-all duration-500 ease-out transform",
+          column.color,
+          column.borderColor,
+          isDragging ? "shadow-2xl scale-[1.02]" : "shadow-lg hover:shadow-xl",
+          column.glowColor,
+          isOver && [
+            "bg-white/30 backdrop-blur-sm",
+            "ring-2 ring-blue-400 ring-opacity-50",
+            "transform scale-[1.02]"
+          ]
+        )}
+        style={{
+          background: isOver 
+            ? 'radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%)'
+            : undefined
+        }}
+      >
+        {/* Column Header */}
+        <div className="px-6 py-4 flex items-center justify-between backdrop-blur-sm bg-white/20">
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="font-bold text-lg text-gray-800">{column.title}</h3>
+              <Badge 
+                variant="secondary" 
+                className="bg-white/80 text-gray-700 font-semibold px-3 py-1 rounded-full transition-all duration-300 hover:scale-110"
+              >
+                {tasks.length}
+              </Badge>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              {column.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Tasks Container */}
+        <div className="px-4 pb-6 space-y-4 min-h-[300px] transition-all duration-300 ease-out">
+          <SortableContext
+            items={tasks.map(task => task.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {tasks.map((task) => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                teamMembers={teamMembers}
+                onTaskSelect={onTaskSelect}
+                onOpenTaskDetail={onOpenTaskDetail}
+                selectedTasks={selectedTasks}
+              />
+            ))}
+          </SortableContext>
+          
+          {/* Empty state with animation */}
+          {tasks.length === 0 && (
+            <div className={cn(
+              "text-center py-12 transition-all duration-300",
+              isOver && "py-16"
+            )}>
+              <div className="text-gray-400 text-sm">
+                {isOver ? (
+                  <div className="animate-bounce">
+                    <div className="text-blue-500 font-medium">Drop here</div>
+                    <div className="text-xs mt-1">Release to move task</div>
+                  </div>
+                ) : (
+                  "No tasks yet"
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -327,134 +507,44 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, teamMembers, onTaskUpdate 
           "flex h-full gap-6 px-4 pb-4 min-w-[1200px] transition-all duration-300",
           isDragging && "gap-8"
         )}>
-          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-            {columns.map((column, columnIndex) => (
-              <div
-                key={column.id}
-                className={cn(
-                  "flex-1 min-w-[300px] rounded-2xl overflow-hidden border-2 transition-all duration-500 ease-out transform",
-                  column.color,
-                  column.borderColor,
-                  isDragging ? "shadow-2xl scale-[1.02]" : "shadow-lg hover:shadow-xl",
-                  column.glowColor
-                )}
-                style={{
-                  animationDelay: `${columnIndex * 100}ms`,
-                  animation: 'fadeInUp 0.6s ease-out forwards'
-                }}
-              >
-                {/* Column Header */}
-                <div className="px-6 py-4 flex items-center justify-between backdrop-blur-sm bg-white/20">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-bold text-lg text-gray-800">{column.title}</h3>
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-white/80 text-gray-700 font-semibold px-3 py-1 rounded-full transition-all duration-300 hover:scale-110"
-                      >
-                        {getTasksForColumn(column.id).length}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {column.description}
-                    </p>
-                  </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            onDragStart={onDragStart}
+          >
+            <SortableContext
+              items={columns.map(column => column.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {columns.map((column, columnIndex) => (
+                <DroppableColumn
+                  key={column.id}
+                  column={column}
+                  tasks={getTasksForColumn(column.id)}
+                  teamMembers={teamMembers}
+                  onTaskSelect={handleTaskSelect}
+                  onOpenTaskDetail={handleOpenTaskDetail}
+                  selectedTasks={selectedTasks}
+                  isDragging={isDragging}
+                />
+              ))}
+            </SortableContext>
+            
+            <DragOverlay>
+              {activeId ? (
+                <div className="rotate-3 scale-105 shadow-2xl ring-2 ring-blue-400 ring-opacity-50 bg-white/95 backdrop-blur-sm rounded-xl">
+                  <TaskCard
+                    task={tasks.find(task => task.id === activeId)!}
+                    teamMembers={teamMembers}
+                    onTaskSelect={() => {}}
+                    onTaskClick={() => {}}
+                    isSelected={false}
+                  />
                 </div>
-
-                {/* Tasks Container */}
-                <Droppable droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={cn(
-                        "px-4 pb-6 space-y-4 min-h-[300px] transition-all duration-300 ease-out",
-                        snapshot.isDraggingOver && [
-                          "bg-white/30 backdrop-blur-sm",
-                          "ring-2 ring-blue-400 ring-opacity-50",
-                          "transform scale-[1.02]"
-                        ]
-                      )}
-                      style={{
-                        background: snapshot.isDraggingOver 
-                          ? 'radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%)'
-                          : undefined
-                      }}
-                    >
-                      {getTasksForColumn(column.id).map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={cn(
-                                "transition-all duration-300 ease-out",
-                                snapshot.isDragging && [
-                                  "rotate-3 scale-105 z-50",
-                                  "shadow-2xl ring-2 ring-blue-400 ring-opacity-50",
-                                  "bg-white rounded-xl"
-                                ],
-                                !snapshot.isDragging && "hover:scale-[1.02] hover:shadow-lg"
-                              )}
-                              style={{
-                                transform: snapshot.isDragging 
-                                  ? `${provided.draggableProps.style?.transform} rotate(3deg) scale(1.05)`
-                                  : provided.draggableProps.style?.transform,
-                                transition: snapshot.isDragging 
-                                  ? 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)'
-                                  : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                ...provided.draggableProps.style
-                              }}
-                            >
-                              <div className={cn(
-                                "rounded-xl overflow-hidden transition-all duration-300",
-                                snapshot.isDragging && "ring-4 ring-blue-300 ring-opacity-30"
-                              )}>
-                                <EnhancedTaskCard
-                                  task={task}
-                                  isSelected={selectedTasks.includes(task.id)}
-                                  onSelect={(selected) => handleTaskSelect(selected, task.id)}
-                                  onOpenDetail={() => handleOpenTaskDetail(task)}
-                                  isDragging={snapshot.isDragging}
-                                  onUpdate={handleTaskUpdate}
-                                  updateTaskStatus={updateTaskStatus}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      
-                      {/* Empty state with animation */}
-                      {getTasksForColumn(column.id).length === 0 && (
-                        <div className={cn(
-                          "text-center py-12 transition-all duration-300",
-                          snapshot.isDraggingOver && "py-16"
-                        )}>
-                          <div className="text-gray-400 text-sm">
-                            {snapshot.isDraggingOver ? (
-                              <div className="animate-bounce">
-                                <div className="text-blue-500 font-medium">Drop here</div>
-                                <div className="text-xs mt-1">Release to move task</div>
-                              </div>
-                            ) : (
-                              "No tasks yet"
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            ))}
-          </DragDropContext>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       </div>
 
